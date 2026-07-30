@@ -189,11 +189,10 @@ function cleanupNetwork(){
 }
 
 function updateLeaveButtonVisibility(){
-  const btn = $('btnLeaveGame');
-  if(!localMode && (peer || hostConn)) btn.classList.remove('hidden');
-  else btn.classList.add('hidden');
+  const online = !localMode && (peer || hostConn);
+  $('btnGameLeave').classList.toggle('hidden', !online);
 }
-$('btnLeaveGame').onclick = () => leaveOnlineGame();
+$('btnGameLeave').onclick = () => leaveOnlineGame();
 $('btnLobbyLeave').onclick = () => leaveOnlineGame();
 function leaveOnlineGame(){
   if(localMode) return;
@@ -243,7 +242,6 @@ function renderLobby(){
     chip.textContent = p.name + (p.id===myId ? (isHost ? ' (tú, host)' : ' (tú)') : '');
     box.appendChild(chip);
   });
-  $('lobbyMsg').textContent = `${lobbyPlayersList.length} jugador(es). Máximo 5.`;
 }
 
 function handleHostData(conn, data){
@@ -689,14 +687,22 @@ function renderPoisonScreen(){
 /* ================= TABLERO (juego) ================= */
 function renderGameBoard(container, g, opts){
   opts = opts || {};
-  container.style.gridTemplateColumns = `repeat(${g.cols}, minmax(28px, 42px))`;
-  container.innerHTML = '';
   const skinEmoji = SKINS[g.skin] || '🧸';
+  const freshBoard = container.children.length !== g.colors.length;
+  if(freshBoard){
+    container.style.gridTemplateColumns = `repeat(${g.cols}, minmax(28px, 42px))`;
+    container.innerHTML = '';
+    for(let i=0;i<g.colors.length;i++){
+      const d = document.createElement('div');
+      d.className = 'candy candy-enter';
+      d.style.setProperty('--i', i);
+      d.style.background = g.colors[i];
+      container.appendChild(d);
+    }
+  }
   for(let i=0;i<g.colors.length;i++){
-    const d = document.createElement('div');
-    d.className = 'candy';
-    d.style.setProperty('--i', i);
-    d.style.background = g.colors[i];
+    const d = container.children[i];
+    d.classList.remove('eaten','wasPoison','mine-poison','secret-vision','roulette-pick','ui-picked','forced-pick','row-highlight','info-poison','info-safe');
     const eatenInfo = g.eaten[i];
     if(eatenInfo){
       d.classList.add('eaten');
@@ -712,8 +718,7 @@ function renderGameBoard(container, g, opts){
     if(opts.pickedSet && opts.pickedSet.has(i)) d.classList.add('ui-picked');
     if(opts.forcedSet && opts.forcedSet.has(i)) d.classList.add('forced-pick');
     if(opts.rowHighlight && opts.rowHighlight.has(Math.floor(i/g.cols))) d.classList.add('row-highlight');
-    if(!eatenInfo && opts.onPick) d.onclick = () => opts.onPick(i);
-    container.appendChild(d);
+    d.onclick = (!eatenInfo && opts.onPick) ? (() => opts.onPick(i)) : null;
   }
 }
 
@@ -742,6 +747,7 @@ function renderCurrentPhase(){
 function renderGameScreenFull(){
   const g = game;
   ensureGameTicker();
+  updateLeaveButtonVisibility();
   const curId = currentPlayerId();
   $('turnBanner').textContent = `Turno de ${nameOf(curId)}`;
   $('gameMsg').textContent = g.lastMessage || '';
@@ -1250,10 +1256,14 @@ $('btnReplay').onclick = () => { cleanupNetwork(); location.reload(); };
 /* ================= MÚSICA (Web Audio, sin archivos externos) ================= */
 let audioCtx = null, musicOn = false, musicTimer = null;
 const MUSIC_TRACKS = {
-  alegre:   {label:'Alegre',   type:'triangle', noteDur:0.28, notes:[261.63,329.63,392.00,329.63,293.66,349.23,440.00,349.23]},
-  retro:    {label:'Retro',    type:'square',   noteDur:0.16, notes:[440,440,523.25,440,349.23,440,523.25,659.25]},
-  misterio: {label:'Misterio', type:'sine',     noteDur:0.4,  notes:[220,246.94,196,220,174.61,196,164.81,196]},
-  suspenso: {label:'Suspenso', type:'sawtooth', noteDur:0.22, notes:[110,110,116.54,110,103.83,110,98,110]},
+  alegre:    {label:'Alegre',   type:'triangle', bassType:'sine',     noteDur:0.28, notes:[261.63,329.63,392.00,329.63,293.66,349.23,440.00,349.23]},
+  retro:     {label:'Retro',    type:'square',   bassType:'square',   noteDur:0.15, notes:[440,523.25,440,349.23,392.00,493.88,392.00,329.63]},
+  misterio:  {label:'Misterio', type:'sine',     bassType:'sine',     noteDur:0.42, notes:[220,246.94,196,220,174.61,196,164.81,146.83]},
+  suspenso:  {label:'Suspenso', type:'sawtooth', bassType:'sine',     noteDur:0.22, notes:[110,110,116.54,110,103.83,98,103.83,110]},
+  chill:     {label:'Chill',    type:'sine',     bassType:'triangle', noteDur:0.5,  notes:[293.66,349.23,392.00,349.23,329.63,392.00,440.00,392.00]},
+  fiesta:    {label:'Fiesta',   type:'triangle', bassType:'square',   noteDur:0.18, notes:[523.25,659.25,783.99,659.25,587.33,739.99,880.00,739.99]},
+  ocho_bits: {label:'8 bits',   type:'square',   bassType:'square',   noteDur:0.14, notes:[392.00,392.00,523.25,392.00,349.23,392.00,440.00,349.23]},
+  epico:     {label:'Épico',    type:'sawtooth', bassType:'triangle', noteDur:0.3,  notes:[196,246.94,293.66,246.94,220,261.63,329.63,261.63]},
 };
 let currentTrack = 'alegre';
 function populateMusicTrackOptions(){
@@ -1266,13 +1276,13 @@ $('musicTrack').onchange = () => {
   currentTrack = $('musicTrack').value;
   if(musicOn){ clearTimeout(musicTimer); scheduleMusicLoop(); }
 };
-function playNote(freq, time, dur, type){
+function playNote(freq, time, dur, type, vol){
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.type = type || 'triangle';
   osc.frequency.value = freq;
   gain.gain.setValueAtTime(0.0001, time);
-  gain.gain.linearRampToValueAtTime(0.06, time+0.02);
+  gain.gain.linearRampToValueAtTime(vol||0.06, time+0.02);
   gain.gain.linearRampToValueAtTime(0.0001, time+dur);
   osc.connect(gain); gain.connect(audioCtx.destination);
   osc.start(time); osc.stop(time+dur+0.02);
@@ -1281,7 +1291,11 @@ function scheduleMusicLoop(){
   if(!musicOn) return;
   const track = MUSIC_TRACKS[currentTrack];
   const now = audioCtx.currentTime;
-  track.notes.forEach((freq, i) => playNote(freq, now + i*track.noteDur, track.noteDur*0.9, track.type));
+  track.notes.forEach((freq, i) => {
+    const t = now + i*track.noteDur;
+    playNote(freq, t, track.noteDur*0.9, track.type, 0.07);
+    playNote(freq/2, t, track.noteDur*0.9, track.bassType||track.type, 0.035);
+  });
   musicTimer = setTimeout(scheduleMusicLoop, track.notes.length*track.noteDur*1000);
 }
 $('btnMusic').onclick = () => {

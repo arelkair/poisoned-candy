@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>Chuche Envenenada</title>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=2">
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 </head>
 <body>
@@ -16,10 +16,8 @@
   <div class="settings-cluster">
     <select id="musicTrack" title="Pista de música"></select>
     <button id="btnMusic" class="icon-btn">🔇</button>
-    <button id="btnLeaveGame" class="icon-btn hidden" title="Abandonar partida">🚪</button>
   </div>
 </div>
-<div class="sub" id="subtitle">Una chuche está envenenada. No sabes cuál.</div>
 
 <!-- MENU -->
 <div class="screen" id="screen-menu">
@@ -156,6 +154,7 @@
 <!-- GAME -->
 <div class="screen hidden" id="screen-game">
   <div class="turn-banner" id="turnBanner">Turno de ...</div>
+  <button id="btnGameLeave" class="secondary small hidden" style="align-self:center;">Abandonar partida</button>
   <div class="game-layout">
     <div class="side-panel" id="otherInventoriesWrap">
       <b style="font-size:0.85rem;">Comodines</b>
@@ -193,6 +192,6 @@
   </div>
 </div>
 
-<script src="app.js"></script>
+<script src="app.js?v=2"></script>
 </body>
 </html>
