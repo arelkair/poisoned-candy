@@ -182,6 +182,36 @@ input:focus{border-color:var(--accent);}
   <div class="msg" id="lobbyMsg">Esperando al anfitrión...</div>
 </div>
 
+<!-- CONFIG -->
+<div class="screen hidden" id="screen-config">
+  <div class="card">
+    <b>⚙️ Configuración de la sala</b>
+    <div class="msg" style="margin:0.6rem 0 0.2rem;">Tablero: filas x columnas (2-10)</div>
+    <div class="row">
+      <input type="number" id="cfgRows" min="2" max="10">
+      <input type="number" id="cfgCols" min="2" max="10">
+    </div>
+    <div class="msg" style="margin:0.6rem 0 0.2rem;">Máximo de comodines por jugador (0 = modo básico, sin comodines)</div>
+    <input type="number" id="cfgMaxWildcards" min="0" max="15">
+    <div class="msg" style="margin:0.6rem 0 0.2rem;">Tiempo para actuar en tu turno</div>
+    <select id="cfgActionTime"></select>
+    <div class="msg" style="margin:0.6rem 0 0.2rem;">Nº de chuches envenenadas por jugador</div>
+    <input type="number" id="cfgPoisonCount" min="1" max="9">
+    <div class="msg" style="margin:0.6rem 0 0.2rem;">Nº de vidas por jugador</div>
+    <input type="number" id="cfgLives" min="1" max="5">
+    <div class="msg" style="margin:0.6rem 0 0.2rem;">Stock de cada comodín (copias disponibles)</div>
+    <input type="number" id="cfgStock" min="1" max="9">
+    <div class="msg" style="margin:0.6rem 0 0.2rem;">Estilo de la chuchería</div>
+    <select id="cfgSkin"></select>
+    <label class="row" style="margin-top:0.7rem; align-items:center; gap:0.5rem;">
+      <input type="checkbox" id="cfgRandom" style="flex:none; width:auto;">
+      <span>Comodines al azar (sin tienda)</span>
+    </label>
+    <button id="btnConfigContinue" style="margin-top:1rem;">Empezar partida</button>
+    <button class="secondary" id="btnConfigBack" style="margin-top:0.5rem;">Volver</button>
+  </div>
+</div>
+
 <!-- SHOP -->
 <div class="screen hidden" id="screen-shop">
   <div class="card center" id="shopHeader">Elige un comodín</div>
@@ -293,29 +323,32 @@ let lastWheelId = -1;
 
 const SHOP_TIME_MS = 20000;
 function resetShopTimer(){ game.shopTimerEnd = Date.now() + SHOP_TIME_MS; }
-function buildPool(numPlayers){
+const SKINS = { osito:'🧸', caramelo:'🍬', piruleta:'🍭', donut:'🍩', galleta:'🍪' };
+function buildPool(numPlayers, stock){
   const pool = {};
-  Object.keys(WILDCARDS).forEach(id => pool[id] = 1);
+  Object.keys(WILDCARDS).forEach(id => pool[id] = stock);
   if(numPlayers <= 2){ pool.secretito = 0; pool.calavera = 0; }
   return pool;
 }
 
-function newGame(playerList){
-  const size = boardSizeFor(playerList.length);
-  const cells = size*size;
-  const colors = Array.from({length:cells}, ()=>COLORS[rand(COLORS.length)]);
+function newGame(playerList, config){
+  const rows = config.rows, cols = config.cols;
+  const colors = Array.from({length: rows*cols}, ()=>COLORS[rand(COLORS.length)]);
   const ids = playerList.map(p=>p.id);
   const inventories = {}; ids.forEach(id=>inventories[id]=[]);
-  const flags = {}; ids.forEach(id=>flags[id]={guardianArmed:false, forcedEats:0, forcedCells:[], blocked:false, revertidor:false});
+  const flags = {}; ids.forEach(id=>flags[id]={guardianArmed:false, forcedEats:0, forcedCells:[], blocked:false, revertidor:false, lives:config.lives});
   return {
     phase:'shopWheel',
-    size, colors,
+    rows, cols, colors, skin: config.skin,
     players: playerList,
     poison:{}, eaten:{},
     alive: ids.slice(),
     order:[], turnIdx:0,
-    maxWildcards: maxWildcardsFor(playerList.length),
-    pool: buildPool(playerList.length),
+    maxWildcards: config.maxWildcards,
+    poisonCount: config.poisonCount,
+    livesConfig: config.lives,
+    actionTimeSec: config.actionTimeSec,
+    pool: buildPool(playerList.length, config.wildcardStock),
     pickOrder:[], pickIdx:0, shopStage:null,
     recycleQueue:[], recycleRemaining:0,
     inventories, flags,
@@ -324,7 +357,7 @@ function newGame(playerList){
     lastMessage:'',
     wheelId:0, wheelPurpose:null, wheelResultId:null,
     resultWinnerId:null, resultWinners:null, eliminationOrder:[],
-    shopTimerEnd:0,
+    shopTimerEnd:0, turnTimerEnd:0,
     eventSeq:0, event:null,
   };
 }
@@ -394,8 +427,8 @@ $('btnLocalContinue').onclick = () => {
     players.push({id:'p'+i, name:v});
   }
   localMode = true;
-  game = newGame(players);
-  beginWheel('shop');
+  pendingPlayers = players;
+  openConfigScreen();
 };
 
 /* ================= RED (PeerJS, host-autoritativo) ================= */
@@ -440,7 +473,7 @@ function renderLobby(){
   lobbyPlayersList.forEach(p=>{
     const chip = document.createElement('div');
     chip.className = 'player-chip' + (p.id===myId?' me':'');
-    chip.textContent = p.name + (p.id===myId ? ' (tú, host)' : '');
+    chip.textContent = p.name + (p.id===myId ? (isHost ? ' (tú, host)' : ' (tú)') : '');
     box.appendChild(chip);
   });
   $('lobbyMsg').textContent = `${lobbyPlayersList.length} jugador(es). Máximo 5.`;
@@ -468,9 +501,9 @@ function broadcastSync(){
 
 $('btnStartOnline').onclick = () => {
   if(lobbyPlayersList.length < 2){ $('lobbyMsg').textContent = 'Necesitas al menos 2 jugadores.'; return; }
-  const players = lobbyPlayersList.map(p=>({id:p.id, name:p.name}));
-  game = newGame(players);
-  beginWheel('shop');
+  pendingPlayers = lobbyPlayersList.map(p=>({id:p.id, name:p.name}));
+  for(const id in hostConns) hostConns[id].send({type:'hostConfiguring'});
+  openConfigScreen();
 };
 
 $('btnJoinBack').onclick = () => show('screen-menu');
@@ -497,7 +530,85 @@ $('btnDoJoin').onclick = () => {
 function handlePeerData(data){
   if(data.type === 'full'){ $('lobbyMsg').textContent = 'Sala llena (máx. 5).'; }
   else if(data.type === 'lobby'){ lobbyPlayersList = data.players; renderLobby(); }
+  else if(data.type === 'hostConfiguring'){ $('lobbyMsg').textContent = 'El anfitrión está configurando la partida...'; }
   else if(data.type === 'sync'){ game = data.game; renderCurrentPhase(); }
+}
+
+/* ================= CONFIGURACIÓN DE SALA ================= */
+let pendingPlayers = [];
+function clamp(v, min, max){ return Math.min(max, Math.max(min, v)); }
+function populateActionTimeOptions(){
+  const sel = $('cfgActionTime'); sel.innerHTML = '';
+  const opt0 = document.createElement('option'); opt0.value = '0'; opt0.textContent = 'Sin cronómetro'; sel.appendChild(opt0);
+  for(let t=10; t<=120; t+=10){ const o=document.createElement('option'); o.value=String(t); o.textContent=t+'s'; sel.appendChild(o); }
+  const optInf = document.createElement('option'); optInf.value = 'inf'; optInf.textContent = '∞ Infinito'; sel.appendChild(optInf);
+  sel.value = '30';
+}
+function populateSkinOptions(){
+  const sel = $('cfgSkin'); sel.innerHTML = '';
+  Object.keys(SKINS).forEach(key=>{ const o=document.createElement('option'); o.value=key; o.textContent = `${SKINS[key]} ${key}`; sel.appendChild(o); });
+  sel.value = 'osito';
+}
+function openConfigScreen(){
+  const n = pendingPlayers.length;
+  const def = boardSizeFor(n);
+  $('cfgRows').value = def; $('cfgCols').value = def;
+  $('cfgMaxWildcards').value = maxWildcardsFor(n);
+  $('cfgPoisonCount').value = 1;
+  $('cfgLives').value = 1;
+  $('cfgStock').value = 1;
+  $('cfgRandom').checked = false;
+  populateActionTimeOptions();
+  populateSkinOptions();
+  show('screen-config');
+}
+$('btnConfigBack').onclick = () => show(localMode ? 'screen-local-setup' : 'screen-lobby');
+$('btnConfigContinue').onclick = () => {
+  const config = {
+    rows: clamp(parseInt($('cfgRows').value)||5, 2, 10),
+    cols: clamp(parseInt($('cfgCols').value)||5, 2, 10),
+    maxWildcards: clamp(parseInt($('cfgMaxWildcards').value)||0, 0, 15),
+    actionTimeSec: $('cfgActionTime').value === 'inf' ? 'inf' : clamp(parseInt($('cfgActionTime').value)||0, 0, 120),
+    poisonCount: clamp(parseInt($('cfgPoisonCount').value)||1, 1, 9),
+    lives: clamp(parseInt($('cfgLives').value)||1, 1, 5),
+    wildcardStock: clamp(parseInt($('cfgStock').value)||1, 1, 9),
+    skin: $('cfgSkin').value || 'osito',
+    randomWildcards: $('cfgRandom').checked,
+  };
+  finishConfigAndStart(config);
+};
+function finishConfigAndStart(config){
+  game = newGame(pendingPlayers, config);
+  if(config.maxWildcards > 0 && config.randomWildcards){
+    dealWildcardsRandom();
+    game.phase = 'poison';
+    afterMutation();
+  } else if(config.maxWildcards > 0){
+    beginWheel('shop');
+  } else {
+    game.phase = 'poison';
+    afterMutation();
+  }
+}
+function dealWildcardsRandom(){
+  const g = game;
+  g.players.forEach(p=>{
+    while(g.inventories[p.id].length < g.maxWildcards){
+      const avail = Object.keys(WILDCARDS).filter(id=>g.pool[id]>0);
+      if(!avail.length) break;
+      const t = avail[rand(avail.length)];
+      g.pool[t]--; g.inventories[p.id].push(t);
+    }
+  });
+  g.players.forEach(p=>{
+    if(!g.inventories[p.id].includes('reciclador')) return;
+    for(let k=0;k<2;k++){
+      const avail = Object.keys(WILDCARDS).filter(id=>g.pool[id]>0);
+      if(!avail.length) break;
+      const t = avail[rand(avail.length)];
+      g.pool[t]--; g.inventories[p.id].push(t);
+    }
+  });
 }
 
 /* ================= DISPATCH (unifica local y online) ================= */
@@ -537,6 +648,7 @@ function finalizeWheel(){
     g.order = rotationFrom(g.players.map(p=>p.id), g.wheelResultId).filter(id=>g.alive.includes(id));
     g.turnIdx = 0;
     g.phase = 'game';
+    resetTurnTimer();
   }
   afterMutation();
 }
@@ -615,6 +727,48 @@ function autoPickForCurrent(){
   const typeId = availableTypes[rand(availableTypes.length)];
   dispatch({type:'pickWildcard', actorId:curId, typeId});
 }
+
+/* ================= CRONÓMETRO DE TURNO ================= */
+// ponytail: se reinicia en cada acción exitosa (no solo al cambiar de turno) para simplificar;
+// una serie de mordiscos obligatorios (Cerdo Gordito/Ruleta Rusa) por tanto siempre tiene tiempo fresco.
+let turnWarnPlayed = false;
+function resetTurnTimer(){
+  turnWarnPlayed = false;
+  if(game.actionTimeSec === 0) return;
+  game.turnTimerEnd = game.actionTimeSec === 'inf' ? Infinity : Date.now() + game.actionTimeSec*1000;
+}
+let gameTickHandle = null;
+function ensureGameTicker(){
+  if(gameTickHandle) return;
+  gameTickHandle = setInterval(()=>{
+    if(!game || game.phase !== 'game'){ clearInterval(gameTickHandle); gameTickHandle = null; return; }
+    updateActionTimerDisplay();
+    if(game.actionTimeSec !== 0 && game.actionTimeSec !== 'inf'){
+      const remaining = Math.ceil((game.turnTimerEnd - Date.now())/1000);
+      if(remaining <= 5 && remaining > 0 && !turnWarnPlayed){ turnWarnPlayed = true; sfxTimeWarning(); }
+      if((localMode || isHost) && Date.now() >= game.turnTimerEnd){ autoActForTimeout(); }
+    }
+  }, 400);
+}
+function updateActionTimerDisplay(){
+  const el = $('actionTimerDisplay');
+  if(!el || !game) return;
+  if(game.actionTimeSec === 'inf'){ el.textContent = '⏱️ ∞'; return; }
+  const remaining = Math.max(0, Math.ceil((game.turnTimerEnd - Date.now())/1000));
+  el.textContent = `⏱️ ${remaining}s`;
+}
+function autoActForTimeout(){
+  const g = game;
+  if(g.pendingDefense){ dispatch({type:'defenseChoice', actorId:g.pendingDefense.targetId, use:false}); return; }
+  if(g.pendingRuleta){ const opts=g.pendingRuleta.options; dispatch({type:'ruletaChoice', actorId:g.pendingRuleta.activatorId, cell:opts[rand(opts.length)]}); return; }
+  const curId = currentPlayerId();
+  const fl = g.flags[curId]; pruneForcedCells(fl);
+  if(fl.forcedCells && fl.forcedCells.length){ dispatch({type:'eat', actorId:curId, cell:fl.forcedCells[0]}); return; }
+  const avail = [];
+  for(let i=0;i<g.colors.length;i++) if(g.eaten[i]===undefined) avail.push(i);
+  if(avail.length) dispatch({type:'eat', actorId:curId, cell:avail[rand(avail.length)]});
+}
+
 function renderShop(){
   const g = game;
   ensureShopTicker();
@@ -653,28 +807,52 @@ function renderShop(){
 }
 
 /* ================= FASE VENENO ================= */
+let poisonPickState = null;
+function handlePoisonPick(forId, i){
+  if(!poisonPickState || poisonPickState.forId !== forId) return;
+  if(poisonPickState.picked.includes(i)) return;
+  poisonPickState.picked.push(i);
+  if(poisonPickState.picked.length >= game.poisonCount){
+    const cells = poisonPickState.picked.slice();
+    poisonPickState = null;
+    dispatch({type:'setPoison', actorId:forId, cells});
+  } else {
+    renderPoisonScreen();
+  }
+}
 function renderPoisonScreen(){
   const g = game;
   if(localMode){
     const pending = g.players.find(p => g.poison[p.id]===undefined);
     if(!pending) return;
-    $('poisonPrompt').textContent = `Pásale el móvil a ${pending.name}. Elige su chuche envenenada.`;
-    renderGameBoard($('poisonBoard'), g, { onPick: (i)=> dispatch({type:'setPoison', actorId:pending.id, cell:i}) });
+    if(!poisonPickState || poisonPickState.forId !== pending.id) poisonPickState = {forId: pending.id, picked: []};
+    $('poisonPrompt').textContent = `Pásale el móvil a ${pending.name}. Elige ${g.poisonCount} chuche(s) envenenada(s) (${poisonPickState.picked.length}/${g.poisonCount}).`;
+    renderGameBoard($('poisonBoard'), g, {
+      pickedSet: new Set(poisonPickState.picked),
+      onPick: (i)=> handlePoisonPick(pending.id, i)
+    });
   } else {
     const already = g.poison[myId] !== undefined;
-    $('poisonPrompt').textContent = already ? 'Ya elegiste. Esperando a los demás...' : 'Elige tu chuche envenenada. Nadie más la verá.';
-    renderGameBoard($('poisonBoard'), g, {
-      minePoisonSet: already ? new Set(g.poison[myId]) : new Set(),
-      onPick: already ? null : (i)=> dispatch({type:'setPoison', actorId:myId, cell:i})
-    });
+    if(already){
+      $('poisonPrompt').textContent = 'Ya elegiste. Esperando a los demás...';
+      renderGameBoard($('poisonBoard'), g, { minePoisonSet: new Set(g.poison[myId]) });
+    } else {
+      if(!poisonPickState || poisonPickState.forId !== myId) poisonPickState = {forId: myId, picked: []};
+      $('poisonPrompt').textContent = `Elige ${g.poisonCount} chuche(s) envenenada(s) (${poisonPickState.picked.length}/${g.poisonCount}). Nadie más la verá.`;
+      renderGameBoard($('poisonBoard'), g, {
+        pickedSet: new Set(poisonPickState.picked),
+        onPick: (i)=> handlePoisonPick(myId, i)
+      });
+    }
   }
 }
 
 /* ================= TABLERO (juego) ================= */
 function renderGameBoard(container, g, opts){
   opts = opts || {};
-  container.style.gridTemplateColumns = `repeat(${g.size}, minmax(28px, 42px))`;
+  container.style.gridTemplateColumns = `repeat(${g.cols}, minmax(28px, 42px))`;
   container.innerHTML = '';
+  const skinEmoji = SKINS[g.skin] || '🧸';
   for(let i=0;i<g.colors.length;i++){
     const d = document.createElement('div');
     d.className = 'candy';
@@ -683,9 +861,9 @@ function renderGameBoard(container, g, opts){
     if(eatenInfo){
       d.classList.add('eaten');
       if(eatenInfo.by === 'destroyed'){ d.textContent = '💥'; }
-      else { d.textContent = '🧸'; if(eatenInfo.poisoned) d.classList.add('wasPoison'); }
+      else { d.textContent = skinEmoji; if(eatenInfo.poisoned) d.classList.add('wasPoison'); }
     } else {
-      d.textContent = '🧸';
+      d.textContent = skinEmoji;
       if(g.publicInfo && g.publicInfo[i] !== undefined) d.classList.add(g.publicInfo[i] ? 'info-poison' : 'info-safe');
     }
     if(opts.minePoisonSet && opts.minePoisonSet.has(i)) d.classList.add('mine-poison');
@@ -693,7 +871,7 @@ function renderGameBoard(container, g, opts){
     if(opts.rouletteSet && opts.rouletteSet.has(i)) d.classList.add('roulette-pick');
     if(opts.pickedSet && opts.pickedSet.has(i)) d.classList.add('ui-picked');
     if(opts.forcedSet && opts.forcedSet.has(i)) d.classList.add('forced-pick');
-    if(opts.rowHighlight && opts.rowHighlight.has(Math.floor(i/g.size))) d.classList.add('row-highlight');
+    if(opts.rowHighlight && opts.rowHighlight.has(Math.floor(i/g.cols))) d.classList.add('row-highlight');
     if(!eatenInfo && opts.onPick) d.onclick = () => opts.onPick(i);
     container.appendChild(d);
   }
@@ -707,6 +885,7 @@ function playEventSound(){
   if(game.event.type === 'eat-safe') sfxEatSafe();
   else if(game.event.type === 'eat-poison') sfxEatPoison();
   else if(game.event.type === 'wildcard') sfxWildcard();
+  else if(game.event.type === 'pick-coin') sfxCoin();
 }
 function renderCurrentPhase(){
   if(!game) return;
@@ -722,6 +901,7 @@ function renderCurrentPhase(){
 }
 function renderGameScreenFull(){
   const g = game;
+  ensureGameTicker();
   const curId = currentPlayerId();
   $('turnBanner').textContent = `👉 Turno de ${nameOf(curId)}`;
   $('gameMsg').textContent = g.lastMessage || '';
@@ -820,7 +1000,7 @@ function handleUiModeCellClick(i){
     uiMode = null;
     dispatch({type:'activate', actorId, typeId:'calavera', cell:i});
   } else if(uiMode.type==='equilibrio'){
-    const row = Math.floor(i / game.size);
+    const row = Math.floor(i / game.cols);
     const idx = uiMode.rows.indexOf(row);
     if(idx>=0) uiMode.rows.splice(idx,1); else uiMode.rows.push(row);
     renderGameScreenFull();
@@ -859,34 +1039,49 @@ function renderLeftInventories(){
     const row = document.createElement('div');
     row.className = 'inv-row' + (p.id===curId?' turn':'') + (!game.alive.includes(p.id)?' out':'');
     const icons = game.inventories[p.id].map(t=>`<span title="${WILDCARDS[t].name}">${WILDCARDS[t].icon}</span>`).join(' ') || '—';
-    row.innerHTML = `<b>${p.name}${p.id===curId?' 🎯':''}${!game.alive.includes(p.id)?' 💀':''}</b><div class="inv-icons">${icons}</div>`;
+    const livesTxt = game.livesConfig > 1 ? ` · ❤️${game.flags[p.id].lives}` : '';
+    row.innerHTML = `<b>${p.name}${p.id===curId?' 🎯':''}${!game.alive.includes(p.id)?' 💀':''}${livesTxt}</b><div class="inv-icons">${icons}</div>`;
     box.appendChild(row);
   });
 }
 function renderRightActions(curId){
   const box = $('myActions'); box.innerHTML = '';
   const g = game;
-  if(g.pendingDefense){ box.innerHTML = '<div class="msg">Esperando resolución de un ataque...</div>'; return; }
   const iAmActor = localMode || myId === curId;
+  if(g.pendingDefense){ box.innerHTML = '<div class="msg">Esperando resolución de un ataque...</div>'; return; }
   if(!iAmActor){ box.innerHTML = '<div class="msg">No es tu turno.</div>'; return; }
   const fl = g.flags[curId];
-  if(fl.blocked){ box.innerHTML = '<div class="msg">🚫 Tus comodines están bloqueados este turno.</div>'; return; }
-  const inv = g.inventories[curId];
-  if(!inv.length){ box.innerHTML = '<div class="msg">Sin comodines.</div>'; return; }
-  inv.forEach(typeId=>{
-    const wc = WILDCARDS[typeId];
-    const btn = document.createElement('button'); btn.className = 'wc-item small';
-    btn.innerHTML = `${wc.icon} ${wc.name}`;
-    if(typeId==='proteccion'){
-      btn.title = 'Se activa solo cuando alguien te ataque (no se pulsa).';
-      btn.disabled = true;
-    } else {
-      btn.title = wc.desc;
-      btn.disabled = !!uiMode || !!g.pendingRuleta;
-      btn.onclick = () => startActivation(curId, typeId);
-    }
-    box.appendChild(btn);
-  });
+  if(fl.blocked){
+    box.innerHTML = '<div class="msg">🚫 Tus comodines están bloqueados este turno.</div>';
+  } else {
+    const inv = g.inventories[curId];
+    if(!inv.length){ box.innerHTML = '<div class="msg">Sin comodines.</div>'; }
+    inv.forEach(typeId=>{
+      const wc = WILDCARDS[typeId];
+      const btn = document.createElement('button'); btn.className = 'wc-item small';
+      btn.innerHTML = `${wc.icon} ${wc.name}`;
+      if(typeId==='proteccion'){
+        btn.title = 'Se activa solo cuando alguien te ataque (no se pulsa).';
+        btn.disabled = true;
+      } else {
+        btn.title = wc.desc;
+        btn.disabled = !!uiMode || !!g.pendingRuleta;
+        btn.onclick = () => startActivation(curId, typeId);
+      }
+      box.appendChild(btn);
+    });
+  }
+  if(g.livesConfig > 1){
+    const livesDiv = document.createElement('div'); livesDiv.className = 'msg'; livesDiv.style.marginTop = '0.4rem';
+    livesDiv.textContent = `❤️ Vidas: ${fl.lives}`;
+    box.appendChild(livesDiv);
+  }
+  if(g.actionTimeSec !== 0){
+    const timerDiv = document.createElement('div'); timerDiv.id = 'actionTimerDisplay'; timerDiv.className = 'msg';
+    timerDiv.style.cssText = 'margin-top:0.4rem; font-weight:700; color:var(--neon);';
+    box.appendChild(timerDiv);
+    updateActionTimerDisplay();
+  }
 }
 
 /* ---- activar comodines ---- */
@@ -905,7 +1100,7 @@ function startActivation(actorId, typeId){
   if(typeId==='lupa'){ uiMode = {type:'lupa', need:2, picked:[]}; renderGameScreenFull(); return; }
   if(typeId==='martillo'){ uiMode = {type:'martillo', need:2, picked:[]}; renderGameScreenFull(); return; }
   if(typeId==='calavera'){ uiMode = {type:'calavera', need:1, picked:[]}; renderGameScreenFull(); return; }
-  if(typeId==='equilibrio'){ uiMode = {type:'equilibrio', rowsNeeded: Math.ceil(game.size/2), rows:[]}; renderGameScreenFull(); return; }
+  if(typeId==='equilibrio'){ uiMode = {type:'equilibrio', rowsNeeded: Math.ceil(game.rows/2), rows:[]}; renderGameScreenFull(); return; }
 }
 function openTargetModal(actorId, typeId){
   const others = game.players.filter(p => p.id!==actorId && game.alive.includes(p.id));
@@ -952,6 +1147,7 @@ function applyAction(a){
         if(g.pool[a.typeId] <= 0) return;
         g.pool[a.typeId]--;
         g.inventories[pid].push(a.typeId);
+        fireEvent('pick-coin');
         g.recycleRemaining--;
         if(g.recycleRemaining <= 0){
           g.recycleQueue.shift();
@@ -967,6 +1163,7 @@ function applyAction(a){
       if(g.pool[a.typeId] <= 0) return;
       g.pool[a.typeId]--;
       g.inventories[pid].push(a.typeId);
+      fireEvent('pick-coin');
       advancePickIdx();
       if(g.phase === 'shop') resetShopTimer();
       return;
@@ -974,26 +1171,29 @@ function applyAction(a){
     case 'setPoison': {
       if(g.phase !== 'poison') return;
       if(g.poison[a.actorId] !== undefined) return;
-      const taken = Object.values(g.poison).flat();
-      if(taken.includes(a.cell)) return;
-      g.poison[a.actorId] = [a.cell];
+      if(!a.cells || a.cells.length !== g.poisonCount) return;
+      if(new Set(a.cells).size !== a.cells.length) return;
+      g.poison[a.actorId] = a.cells.slice();
       return;
     }
     case 'eat': {
       if(g.phase !== 'game') return;
       if(currentPlayerId() !== a.actorId) return;
       resolveEat(a.actorId, a.cell);
+      if(g.phase === 'game') resetTurnTimer();
       return;
     }
     case 'activate': {
       if(g.phase !== 'game') return;
       if(currentPlayerId() !== a.actorId) return;
       activateWildcard(a.actorId, a.typeId, a);
+      if(g.phase === 'game') resetTurnTimer();
       return;
     }
     case 'ruletaChoice': {
       if(!g.pendingRuleta || g.pendingRuleta.activatorId !== a.actorId) return;
       resolveRuletaChoice(a.cell);
+      if(g.phase === 'game') resetTurnTimer();
       return;
     }
     case 'defenseChoice': {
@@ -1006,6 +1206,7 @@ function applyAction(a){
       } else {
         resolveTargetedEffect(pd.attackerId, pd.targetId, pd.typeId, pd.params);
       }
+      if(g.phase === 'game') resetTurnTimer();
       return;
     }
   }
@@ -1047,7 +1248,7 @@ function activateWildcard(actorId, typeId, params){
     removeOne(actorId,typeId);
     const rows = params.rows||[];
     let hasPoison = false;
-    rows.forEach(r=>{ for(let c=0;c<g.size;c++){ const idx=r*g.size+c; if(g.eaten[idx]===undefined && isCellPoison(idx)) hasPoison = true; } });
+    rows.forEach(r=>{ for(let c=0;c<g.cols;c++){ const idx=r*g.cols+c; if(g.eaten[idx]===undefined && isCellPoison(idx)) hasPoison = true; } });
     g.equilibrioLog.push({by:nameOf(actorId), rows: rows.slice().sort((a,b)=>a-b), hasPoison});
     g.lastMessage = `${nameOf(actorId)} usó Equilibrio: en esas filas ${hasPoison ? 'SÍ' : 'NO'} hay una envenenada.`;
     return;
@@ -1136,10 +1337,15 @@ function resolveEat(actorId, cell){
       fl.guardianArmed = false;
       g.lastMessage = `${nameOf(actorId)} debía morir, pero su Ángel Guardián lo revivió.`;
     } else {
-      g.alive = g.alive.filter(id=>id!==actorId);
-      g.eliminationOrder.push(actorId);
-      died = true;
-      if(!g.lastMessage) g.lastMessage = `${nameOf(actorId)} comió la envenenada y queda eliminado.`;
+      fl.lives--;
+      if(fl.lives <= 0){
+        g.alive = g.alive.filter(id=>id!==actorId);
+        g.eliminationOrder.push(actorId);
+        died = true;
+        if(!g.lastMessage) g.lastMessage = `${nameOf(actorId)} comió la envenenada y queda eliminado.`;
+      } else if(!g.lastMessage){
+        g.lastMessage = `${nameOf(actorId)} comió la envenenada. Le queda(n) ${fl.lives} vida(s).`;
+      }
     }
   } else if(!g.lastMessage){
     g.lastMessage = `${nameOf(actorId)} comió una chuche segura.`;
@@ -1250,9 +1456,22 @@ function beep(freq, dur, type, vol, delay){
   osc.connect(gain); gain.connect(audioCtx.destination);
   osc.start(t); osc.stop(t+dur+0.02);
 }
-function sfxEatSafe(){ beep(880, 0.12, 'triangle', 0.13); }
-function sfxEatPoison(){ beep(190, 0.35, 'sawtooth', 0.18); beep(120, 0.4, 'sawtooth', 0.15, 0.06); }
+function noiseBurst(dur, vol){
+  ensureAudio();
+  const n = Math.max(1, Math.floor(audioCtx.sampleRate * dur));
+  const buffer = audioCtx.createBuffer(1, n, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for(let i=0;i<n;i++) data[i] = (Math.random()*2-1) * (1 - i/n);
+  const src = audioCtx.createBufferSource(); src.buffer = buffer;
+  const gain = audioCtx.createGain(); gain.gain.value = vol;
+  src.connect(gain); gain.connect(audioCtx.destination);
+  src.start();
+}
+function sfxEatSafe(){ noiseBurst(0.08, 0.13); beep(880, 0.1, 'triangle', 0.11, 0.03); }
+function sfxEatPoison(){ noiseBurst(0.1, 0.15); beep(190, 0.35, 'sawtooth', 0.18, 0.05); beep(120, 0.4, 'sawtooth', 0.15, 0.11); }
 function sfxWildcard(){ beep(660, 0.08, 'square', 0.1); beep(990, 0.1, 'square', 0.1, 0.08); }
+function sfxCoin(){ beep(988, 0.07, 'square', 0.13); beep(1568, 0.12, 'square', 0.13, 0.07); }
+function sfxTimeWarning(){ beep(740, 0.1, 'square', 0.12); beep(740, 0.1, 'square', 0.12, 0.18); }
 function sfxWin(){ [523,659,784,1046].forEach((f,i)=>beep(f, 0.28, 'triangle', 0.16, i*0.15)); }
 function sfxLose(){ [400,340,280,220].forEach((f,i)=>beep(f, 0.3, 'sawtooth', 0.16, i*0.18)); }
 
