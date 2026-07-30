@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Chuche Envenenada</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+:root{
+  --bg:#1a1025; --bg2:#241536; --card:#2e1c47; --text:#f4eefe; --muted:#b9a6d9;
+  --accent:#ff2fd0; --accent2:#7c3aed; --neon:#39ff14; --danger:#ff3b3b;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;height:100%;}
+body{
+  background:radial-gradient(circle at 50% 0%, var(--bg2), var(--bg) 70%);
+  color:var(--text); font-family:'Segoe UI',system-ui,sans-serif;
+  min-height:100vh; display:flex; flex-direction:column; align-items:center;
+  overflow-x:hidden;
+}
+h1{font-size:1.6rem; margin:1rem 0 0.2rem; text-align:center;
+  text-shadow:0 0 12px var(--accent), 0 0 24px var(--accent2);}
+.sub{color:var(--muted); font-size:0.85rem; margin-bottom:1rem; text-align:center; padding:0 1rem;}
+.screen{width:100%; max-width:640px; padding:0 1rem 2rem; display:flex; flex-direction:column; gap:0.9rem; align-items:stretch;}
+.hidden{display:none !important;}
+button{
+  font-size:1rem; padding:0.9rem 1rem; border-radius:14px; border:none;
+  background:linear-gradient(135deg,var(--accent2),var(--accent)); color:white; font-weight:600;
+  cursor:pointer; box-shadow:0 4px 14px rgba(255,47,208,0.25); transition:transform .1s;
+}
+button:active{transform:scale(0.97);}
+button.secondary{background:var(--card); box-shadow:none; border:1px solid #4a2e6e;}
+button.small{padding:0.5rem 0.8rem; font-size:0.85rem;}
+input[type=text],input[type=number]{
+  font-size:1rem; padding:0.8rem; border-radius:12px; border:1px solid #4a2e6e;
+  background:var(--card); color:var(--text); outline:none;
+}
+input:focus{border-color:var(--accent);}
+.card{background:var(--card); border-radius:16px; padding:1rem; border:1px solid #3d2560;}
+.row{display:flex; gap:0.6rem; align-items:center;}
+.row > *{flex:1;}
+.name-list{display:flex; flex-direction:column; gap:0.5rem;}
+.name-item{display:flex; gap:0.5rem; align-items:center;}
+.name-item button{flex:none; padding:0.5rem 0.7rem;}
+.players-box{display:flex; flex-wrap:wrap; gap:0.5rem; justify-content:center;}
+.player-chip{background:var(--card); border:1px solid #4a2e6e; border-radius:999px; padding:0.4rem 0.9rem; font-size:0.85rem;}
+.player-chip.me{border-color:var(--neon); color:var(--neon);}
+#roomCodeDisplay{font-size:2rem; letter-spacing:0.3rem; text-align:center; font-weight:700; color:var(--neon); text-shadow:0 0 10px var(--neon);}
+.board{display:grid; gap:6px; margin:0.6rem auto; touch-action:manipulation;}
+.candy{
+  position:relative; aspect-ratio:1; border-radius:14px; display:flex; align-items:center; justify-content:center;
+  font-size:1.6rem; cursor:pointer; border:3px solid transparent; user-select:none;
+  transition:transform .12s, filter .2s;
+}
+.candy:active{transform:scale(0.9);}
+.candy.eaten{opacity:0.15; cursor:default; filter:grayscale(1);}
+.candy.eaten.wasPoison{opacity:0.9; filter:none;}
+.candy.mine-poison{border-color:#000; box-shadow:0 0 0 3px #fff, 0 0 14px 2px #000;}
+.candy.secret-vision{border-color:#fff; box-shadow:0 0 10px #fff, 0 0 18px #fff;}
+.candy.roulette-pick{border-color:gold; box-shadow:0 0 14px gold; animation:pulse 1s infinite;}
+.candy.ui-picked{border-color:#00e5ff; box-shadow:0 0 10px #00e5ff;}
+.candy.row-highlight{outline:2px dashed #00e5ff; outline-offset:-2px;}
+.candy.info-poison::after{content:'☠️'; position:absolute; bottom:1px; right:1px; font-size:0.6rem;}
+.candy.info-safe::after{content:'✅'; position:absolute; bottom:1px; right:1px; font-size:0.5rem;}
+.turn-banner{
+  text-align:center; font-weight:700; font-size:1.1rem; padding:0.6rem; border-radius:12px;
+  background:var(--card); border:2px solid var(--accent); box-shadow:0 0 16px var(--accent);
+  animation:pulse 1.4s infinite;
+}
+@keyframes pulse{0%,100%{box-shadow:0 0 8px var(--accent);}50%{box-shadow:0 0 22px var(--accent);}}
+.wheel-wrap{display:flex; flex-direction:column; align-items:center; gap:1rem; margin-top:1rem;}
+.wheel-name{font-size:1.4rem; font-weight:700; padding:0.8rem 1.6rem; border-radius:14px; background:var(--card); border:2px solid var(--accent2);}
+.result-box{text-align:center;}
+.msg{font-size:0.85rem; color:var(--muted); text-align:center; min-height:1.2em;}
+.center{text-align:center;}
+.big-emoji{font-size:3rem;}
+/* comodines */
+.shelf{margin-bottom:0.9rem;}
+.shelf-title{font-weight:700; margin-bottom:0.4rem; color:var(--muted);}
+.shelf-items{display:flex; flex-wrap:wrap; gap:0.5rem;}
+.wc-item{display:flex; flex-direction:column; align-items:center; gap:0.2rem; background:var(--bg2); border:1px solid #4a2e6e; border-radius:12px; padding:0.5rem 0.7rem; min-width:78px; color:var(--text); font-weight:500; font-size:0.72rem; cursor:pointer; box-shadow:none;}
+.wc-item:disabled{opacity:0.3; cursor:not-allowed;}
+.wc-icon{font-size:1.4rem;}
+.wc-count{font-size:0.62rem; color:var(--muted);}
+.wc-item.small{flex-direction:row; min-width:auto; padding:0.45rem 0.65rem; gap:0.4rem;}
+.inv-row{padding:0.35rem 0; border-bottom:1px solid #3d2560; font-size:0.8rem;}
+.inv-row:last-child{border-bottom:none;}
+.inv-row.turn{color:var(--accent);}
+.inv-row.out{opacity:0.4; text-decoration:line-through;}
+.inv-icons{font-size:1.05rem; margin-top:0.15rem;}
+.game-layout{display:flex; gap:0.6rem; align-items:flex-start; justify-content:center; flex-wrap:wrap;}
+.side-panel{background:var(--card); border-radius:14px; padding:0.6rem; border:1px solid #3d2560; min-width:130px; max-width:180px; font-size:0.8rem;}
+.modal-overlay{position:fixed; inset:0; background:rgba(0,0,0,0.65); display:flex; align-items:center; justify-content:center; z-index:50; padding:1rem;}
+.modal-box{background:var(--card); border:1px solid #4a2e6e; border-radius:16px; padding:1rem; max-width:360px; width:100%;}
+.modal-list{display:flex; flex-direction:column; gap:0.5rem; margin:0.8rem 0;}
+.uimode-bar{display:flex; gap:0.6rem; align-items:center; justify-content:center; flex-wrap:wrap;}
+#btnMusic{position:fixed; top:0.7rem; right:0.7rem; z-index:60; padding:0.5rem 0.7rem; font-size:0.85rem; box-shadow:none;}
+</style>
+</head>
+<body>
+
+<button id="btnMusic" class="secondary">🔇 Música</button>
+<h1>🍬 Chuche Envenenada</h1>
+<div class="sub" id="subtitle">Encuentra quién sobrevive... sin morder el veneno.</div>
+
+<!-- MENU -->
+<div class="screen" id="screen-menu">
+  <div class="card">
+    <button id="btnLocal">🎮 Jugar en este dispositivo</button>
+    <button id="btnCreateRoom" style="margin-top:0.6rem;">🌐 Crear sala online</button>
+    <button id="btnJoinRoom" class="secondary" style="margin-top:0.6rem;">🔑 Unirse a una sala</button>
+  </div>
+</div>
+
+<!-- NAME SELECT -->
+<div class="screen hidden" id="screen-name">
+  <div class="card">
+    <label class="msg">¿Cómo te llamas?</label>
+    <input type="text" id="myName" placeholder="Tu nombre" maxlength="16" style="margin-top:0.4rem;">
+    <button id="btnNameContinue" style="margin-top:1rem;">Continuar</button>
+    <button class="secondary" id="btnNameBack" style="margin-top:0.5rem;">Volver</button>
+  </div>
+  <div class="msg" id="nameMsg"></div>
+</div>
+
+<!-- LOCAL SETUP -->
+<div class="screen hidden" id="screen-local-setup">
+  <div class="card">
+    <label class="msg">¿Cuántos jugadores? (2-5)</label>
+    <input type="number" id="localCount" min="2" max="5" value="2" style="margin-top:0.4rem;">
+    <div class="name-list" id="localNames" style="margin-top:0.8rem;"></div>
+    <button id="btnLocalContinue" style="margin-top:1rem;">Continuar</button>
+    <button class="secondary" id="btnLocalBack" style="margin-top:0.5rem;">Volver</button>
+  </div>
+</div>
+
+<!-- JOIN ROOM -->
+<div class="screen hidden" id="screen-join">
+  <div class="card">
+    <label class="msg">Código de sala</label>
+    <input type="text" id="joinCode" placeholder="Ej: FOX42" maxlength="8" style="text-transform:uppercase; margin-top:0.4rem;">
+    <button id="btnDoJoin" style="margin-top:1rem;">Unirse</button>
+    <button class="secondary" id="btnJoinBack" style="margin-top:0.5rem;">Volver</button>
+  </div>
+  <div class="msg" id="joinMsg"></div>
+</div>
+
+<!-- ONLINE LOBBY -->
+<div class="screen hidden" id="screen-lobby">
+  <div class="card center">
+    <div class="msg">Código de sala (compártelo):</div>
+    <div id="roomCodeDisplay">----</div>
+  </div>
+  <div class="card">
+    <div class="msg" style="margin-bottom:0.5rem;">Jugadores conectados</div>
+    <div class="players-box" id="lobbyPlayers"></div>
+  </div>
+  <button id="btnStartOnline" class="hidden">Empezar partida</button>
+  <div class="msg" id="lobbyMsg">Esperando al anfitrión...</div>
+</div>
+
+<!-- SHOP -->
+<div class="screen hidden" id="screen-shop">
+  <div class="card center" id="shopHeader">Elige un comodín</div>
+  <div class="card" id="shopShelves"></div>
+  <div class="card" id="shopInventories"></div>
+</div>
+
+<!-- POISON PICK -->
+<div class="screen hidden" id="screen-poison">
+  <div class="card center">
+    <div id="poisonPrompt" style="font-weight:600; margin-bottom:0.5rem;"></div>
+    <div class="msg">Toca la chuche que quieres envenenar. Nadie más la verá.</div>
+  </div>
+  <div class="board" id="poisonBoard"></div>
+</div>
+
+<!-- SPIN WHEEL -->
+<div class="screen hidden" id="screen-wheel">
+  <div class="wheel-wrap">
+    <div class="msg">Girando...</div>
+    <div class="wheel-name" id="wheelName">?</div>
+  </div>
+</div>
+
+<!-- GAME -->
+<div class="screen hidden" id="screen-game">
+  <div class="turn-banner" id="turnBanner">Turno de ...</div>
+  <div class="game-layout">
+    <div class="side-panel" id="otherInventoriesWrap">
+      <b style="font-size:0.85rem;">Comodines</b>
+      <div id="otherInventories"></div>
+    </div>
+    <div class="board" id="gameBoard"></div>
+    <div class="side-panel" id="myActionsWrap">
+      <b style="font-size:0.85rem;">Tus comodines</b>
+      <div id="myActions"></div>
+    </div>
+  </div>
+  <div class="card hidden" id="defenseBox"></div>
+  <div class="uimode-bar hidden" id="uiModeBar"></div>
+  <div class="msg" id="gameMsg"></div>
+  <div class="msg" id="equilibrioLogBox"></div>
+</div>
+
+<!-- RESULT -->
+<div class="screen hidden" id="screen-result">
+  <div class="card result-box">
+    <div class="big-emoji" id="resultEmoji">🏆</div>
+    <h2 id="resultText">¡Ganó!</h2>
+  </div>
+  <button id="btnReplay">Volver al menú</button>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay hidden" id="actionModal">
+  <div class="modal-box">
+    <div id="modalTitle" style="font-weight:700;"></div>
+    <div class="modal-list" id="modalList"></div>
+    <button class="secondary small" id="btnModalCancel">Cancelar</button>
+  </div>
+</div>
+
+<script>
+/* ---------- utilidades ---------- */
+const COLORS = ['#e63946','#f4a300','#ffe135','#38b000','#1e90ff','#00e5ff','#7cff6b','#ff6ec7','#a259ff'];
+const $ = id => document.getElementById(id);
+const show = id => { document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden')); $(id).classList.remove('hidden'); };
+const rand = n => Math.floor(Math.random()*n);
+const shuffleInPlace = arr => { for(let i=arr.length-1;i>0;i--){const j=rand(i+1);[arr[i],arr[j]]=[arr[j],arr[i]];} return arr; };
+const boardSizeFor = n => n + 3; // 2->5,3->6,4->7,5->8
+const roomCode = () => Array.from({length:5},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[rand(32)]).join('');
+const maxWildcardsFor = n => n<=2 ? 2 : 3;
+function rotationFrom(ids, startId){
+  const idx = ids.indexOf(startId);
+  return ids.slice(idx).concat(ids.slice(0,idx));
+}
+
+/* ---------- comodines ---------- */
+const WILDCARDS = {
+  saltar_turno:      {name:'Saltar turno',      cat:'protectores', icon:'⏭️', desc:'Salta tu turno.'},
+  angel_guardian:    {name:'Ángel Guardián',    cat:'protectores', icon:'👼', desc:'Si mueres en tu próximo turno, revives.'},
+  proteccion:        {name:'Protección',        cat:'protectores', icon:'🛡️', desc:'Bloquea el próximo comodín de ataque contra ti.'},
+  foca_gordita:      {name:'Foca Gordita',      cat:'ataque',       icon:'🐷', desc:'Un rival debe comer 3 en su próximo turno.'},
+  ruleta_rusa:       {name:'Ruleta Rusa',       cat:'ataque',       icon:'🎯', desc:'Sorteo de 3 chuches: 1 para ti, 2 para un rival.'},
+  bloquea_comodines: {name:'Bloquea-Comodines', cat:'ataque',       icon:'🚫', desc:'Bloquea los comodines de un rival en su próximo turno.'},
+  lupa:              {name:'Lupa',              cat:'informacion',  icon:'🔍', desc:'Revela (público) si 2 chuches están envenenadas.'},
+  equilibrio:        {name:'Equilibrio',        cat:'informacion',  icon:'⚖️', desc:'Revela (público) medio tablero por filas.'},
+  secretito:         {name:'Secretito',         cat:'informacion',  icon:'🤫', desc:'Ves la envenenada de un rival (solo tú).'},
+  revertidor:        {name:'Revertidor',        cat:'interaccion',  icon:'🔄', desc:'Tu próxima chuche se invierte.'},
+  martillo:          {name:'Martillo',          cat:'interaccion',  icon:'🔨', desc:'Destruye 2 chuches (aún debes comer).'},
+  calavera:          {name:'Calavera',          cat:'interaccion',  icon:'💀', desc:'Añade una 2ª envenenada tuya.'},
+  ladron:            {name:'Ladrón',            cat:'estrategico',  icon:'🥷', desc:'Roba 1 comodín a un rival.'},
+  reciclador:        {name:'Reciclador',        cat:'estrategico',  icon:'♻️', desc:'Al final de la tienda, coges 2 comodines extra.'},
+  duplicador:        {name:'Duplicador',        cat:'estrategico',  icon:'✨', desc:'Duplica un comodín que ya tengas.'},
+};
+const CATS = ['protectores','ataque','informacion','interaccion','estrategico'];
+const CAT_LABEL = {protectores:'🛡️ Protectores', ataque:'⚔️ Ataque', informacion:'🔎 Información', interaccion:'🎲 Interacción', estrategico:'♟️ Estratégico'};
+const SIMPLE_WILDCARDS = ['saltar_turno','angel_guardian','revertidor'];
+const DEFENSIBLE_WILDCARDS = ['foca_gordita','bloquea_comodines','ruleta_rusa','secretito'];
+
+/* ---------- estado del juego ---------- */
+let game = null;
+let localMode = false;
+let uiMode = null;      // selección de celdas/filas en curso
+let lastWheelId = -1;
+
+function buildPool(numPlayers){
+  const pool = {};
+  Object.keys(WILDCARDS).forEach(id => pool[id] = 1);
+  if(numPlayers <= 2){ pool.secretito = 0; pool.calavera = 0; }
+  return pool;
+}
+
+function newGame(playerList){
+  const size = boardSizeFor(playerList.length);
+  const cells = size*size;
+  const colors = Array.from({length:cells}, ()=>COLORS[rand(COLORS.length)]);
+  const ids = playerList.map(p=>p.id);
+  const inventories = {}; ids.forEach(id=>inventories[id]=[]);
+  const flags = {}; ids.forEach(id=>flags[id]={guardianArmed:false, forcedEats:0, forcedCells:[], blocked:false, revertidor:false});
+  return {
+    phase:'shopWheel',
+    size, colors,
+    players: playerList,
+    poison:{}, eaten:{},
+    alive: ids.slice(),
+    order:[], turnIdx:0,
+    maxWildcards: maxWildcardsFor(playerList.length),
+    pool: buildPool(playerList.length),
+    pickOrder:[], pickIdx:0, shopStage:null,
+    recycleQueue:[], recycleRemaining:0,
+    inventories, flags,
+    publicInfo:{}, secretVision:{}, equilibrioLog:[],
+    pendingRuleta:null, pendingDefense:null,
+    lastMessage:'',
+    wheelId:0, wheelPurpose:null, wheelResultId:null,
+    resultWinnerId:null, resultWinners:null,
+  };
+}
+function nameOf(id){ const p = game.players.find(p=>p.id===id); return p ? p.name : '?'; }
+function isCellPoison(c){ return Object.values(game.poison).some(cells=>cells.includes(c)); }
+function currentPlayerId(){ return game.order[game.turnIdx % game.order.length]; }
+function poisonRemainingAll(){
+  let n=0;
+  for(const pid in game.poison) for(const c of game.poison[pid]) if(game.eaten[c]===undefined) n++;
+  return n;
+}
+function removeOne(pid, typeId){
+  const inv = game.inventories[pid];
+  const i = inv.indexOf(typeId);
+  if(i>=0) inv.splice(i,1);
+}
+
+/* ================= MENU / NOMBRE ================= */
+let myName = '';
+let pendingAction = null;
+$('btnLocal').onclick = () => { pendingAction = 'local'; show('screen-name'); };
+$('btnCreateRoom').onclick = () => { pendingAction = 'create'; show('screen-name'); };
+$('btnJoinRoom').onclick = () => { pendingAction = 'join'; show('screen-name'); };
+$('btnNameBack').onclick = () => show('screen-menu');
+$('btnNameContinue').onclick = () => {
+  const v = $('myName').value.trim();
+  if(!v){ $('nameMsg').textContent = 'Escribe un nombre.'; return; }
+  myName = v;
+  if(pendingAction === 'local'){ show('screen-local-setup'); buildLocalNameInputs(); }
+  else if(pendingAction === 'create'){ startOnlineHost(); }
+  else if(pendingAction === 'join'){ show('screen-join'); }
+};
+
+/* ================= LOCAL MODE ================= */
+function buildLocalNameInputs(){
+  const wrap = $('localNames');
+  const build = () => {
+    let n = Math.min(5, Math.max(2, parseInt($('localCount').value)||2));
+    $('localCount').value = n;
+    wrap.innerHTML = '';
+    for(let i=0;i<n;i++){
+      const div = document.createElement('div');
+      div.className = 'name-item';
+      const inp = document.createElement('input');
+      inp.type = 'text'; inp.placeholder = `Jugador ${i+1}`; inp.maxLength = 16;
+      inp.value = i===0 ? myName : '';
+      inp.id = `localName${i}`;
+      div.appendChild(inp);
+      wrap.appendChild(div);
+    }
+  };
+  $('localCount').oninput = build;
+  build();
+}
+$('btnLocalBack').onclick = () => show('screen-menu');
+$('btnLocalContinue').onclick = () => {
+  const n = Math.min(5, Math.max(2, parseInt($('localCount').value)||2));
+  const players = [];
+  for(let i=0;i<n;i++){
+    const v = $(`localName${i}`).value.trim() || `Jugador ${i+1}`;
+    players.push({id:'p'+i, name:v});
+  }
+  localMode = true;
+  game = newGame(players);
+  beginWheel('shop');
+};
+
+/* ================= RED (PeerJS, host-autoritativo) ================= */
+let peer = null, myId = null, isHost = false;
+let hostConns = {};
+let hostConn = null;
+let lobbyPlayersList = [];
+
+function cleanupNetwork(){
+  try{ if(peer) peer.destroy(); }catch(e){}
+  peer = null; hostConns = {}; hostConn = null; isHost = false;
+}
+
+function startOnlineHost(){
+  isHost = true;
+  const code = roomCode();
+  peer = new Peer('candy-'+code, {debug:0});
+  peer.on('open', id => {
+    myId = id;
+    lobbyPlayersList = [{id: myId, name: myName}];
+    $('roomCodeDisplay').textContent = code;
+    show('screen-lobby');
+    $('lobbyMsg').textContent = 'Comparte el código para que se unan.';
+    $('btnStartOnline').classList.remove('hidden');
+    renderLobby();
+  });
+  peer.on('connection', conn => {
+    conn.on('open', () => {});
+    conn.on('data', data => handleHostData(conn, data));
+    conn.on('close', () => {
+      lobbyPlayersList = lobbyPlayersList.filter(p=>p.id!==conn.peer);
+      delete hostConns[conn.peer];
+      renderLobby();
+    });
+  });
+  peer.on('error', err => { $('lobbyMsg').textContent = 'Error: '+err.type; });
+}
+
+function renderLobby(){
+  const box = $('lobbyPlayers');
+  box.innerHTML = '';
+  lobbyPlayersList.forEach(p=>{
+    const chip = document.createElement('div');
+    chip.className = 'player-chip' + (p.id===myId?' me':'');
+    chip.textContent = p.name + (p.id===myId ? ' (tú, host)' : '');
+    box.appendChild(chip);
+  });
+  $('lobbyMsg').textContent = `${lobbyPlayersList.length} jugador(es). Máximo 5.`;
+}
+
+function handleHostData(conn, data){
+  if(data.type === 'join'){
+    if(lobbyPlayersList.length >= 5){ conn.send({type:'full'}); return; }
+    hostConns[conn.peer] = conn;
+    lobbyPlayersList.push({id: conn.peer, name: data.name});
+    renderLobby();
+    broadcastLobby();
+  } else if(data.type === 'action'){
+    if(!game || data.action.actorId !== conn.peer) return;
+    applyAction(data.action);
+    afterMutation();
+  }
+}
+function broadcastLobby(){
+  for(const id in hostConns) hostConns[id].send({type:'lobby', players: lobbyPlayersList});
+}
+function broadcastSync(){
+  for(const id in hostConns) hostConns[id].send({type:'sync', game});
+}
+
+$('btnStartOnline').onclick = () => {
+  if(lobbyPlayersList.length < 2){ $('lobbyMsg').textContent = 'Necesitas al menos 2 jugadores.'; return; }
+  const players = lobbyPlayersList.map(p=>({id:p.id, name:p.name}));
+  game = newGame(players);
+  beginWheel('shop');
+};
+
+$('btnJoinBack').onclick = () => show('screen-menu');
+$('btnDoJoin').onclick = () => {
+  const code = $('joinCode').value.trim().toUpperCase();
+  if(!code){ $('joinMsg').textContent = 'Escribe un código.'; return; }
+  isHost = false;
+  peer = new Peer(undefined, {debug:0});
+  peer.on('open', id => {
+    myId = id;
+    hostConn = peer.connect('candy-'+code, {reliable:true});
+    hostConn.on('open', () => {
+      hostConn.send({type:'join', name: myName});
+      show('screen-lobby');
+      $('roomCodeDisplay').textContent = code;
+      $('lobbyMsg').textContent = 'Esperando a que el anfitrión empiece...';
+    });
+    hostConn.on('data', data => handlePeerData(data));
+    hostConn.on('close', () => { $('lobbyMsg').textContent = 'Conexión perdida con el anfitrión.'; });
+  });
+  peer.on('error', err => { $('joinMsg').textContent = 'Error: '+err.type; });
+};
+
+function handlePeerData(data){
+  if(data.type === 'full'){ $('lobbyMsg').textContent = 'Sala llena (máx. 5).'; }
+  else if(data.type === 'lobby'){ lobbyPlayersList = data.players; renderLobby(); }
+  else if(data.type === 'sync'){ game = data.game; renderCurrentPhase(); }
+}
+
+/* ================= DISPATCH (unifica local y online) ================= */
+function dispatch(action){
+  if(localMode || isHost){ applyAction(action); afterMutation(); }
+  else if(hostConn){ hostConn.send({type:'action', action}); }
+}
+function afterMutation(){
+  if(!game) return;
+  if((localMode || isHost) && game.phase==='poison' && game.players.every(p=>game.poison[p.id]!==undefined)){
+    beginWheel('eat');
+    return;
+  }
+  if(!localMode && isHost) broadcastSync();
+  renderCurrentPhase();
+}
+
+/* ================= RUEDA ================= */
+function beginWheel(purpose){
+  const g = game;
+  const poolIds = purpose==='shop' ? g.players.map(p=>p.id) : g.alive;
+  const resultId = poolIds[rand(poolIds.length)];
+  g.wheelId = (g.wheelId||0)+1;
+  g.wheelPurpose = purpose;
+  g.wheelResultId = resultId;
+  g.phase = purpose==='shop' ? 'shopWheel' : 'eatWheel';
+  afterMutation();
+}
+function finalizeWheel(){
+  const g = game;
+  if(g.wheelPurpose === 'shop'){
+    g.pickOrder = rotationFrom(g.players.map(p=>p.id), g.wheelResultId);
+    g.pickIdx = 0; g.shopStage = null;
+    g.phase = 'shop';
+  } else {
+    g.order = rotationFrom(g.players.map(p=>p.id), g.wheelResultId).filter(id=>g.alive.includes(id));
+    g.turnIdx = 0;
+    g.phase = 'game';
+  }
+  afterMutation();
+}
+function runWheelAnimation(names, resultName, onDone){
+  let ticks = 0; const maxTicks = 18 + rand(6);
+  const interval = setInterval(()=>{
+    $('wheelName').textContent = names[ticks % names.length];
+    ticks++;
+    if(ticks >= maxTicks){
+      clearInterval(interval);
+      $('wheelName').textContent = resultName;
+      setTimeout(onDone, 900);
+    }
+  }, 110);
+}
+function handleWheelPhase(){
+  show('screen-wheel');
+  if(game.wheelId === lastWheelId) return;
+  lastWheelId = game.wheelId;
+  const names = game.players.map(p=>p.name);
+  runWheelAnimation(names, nameOf(game.wheelResultId), () => {
+    if(localMode || isHost) finalizeWheel();
+  });
+}
+
+/* ================= FASE TIENDA (comodines) ================= */
+function advancePickIdx(){
+  const g = game;
+  const n = g.pickOrder.length;
+  for(let step=0; step<n; step++){
+    g.pickIdx = (g.pickIdx+1) % n;
+    const pid = g.pickOrder[g.pickIdx];
+    if(g.inventories[pid].length < g.maxWildcards) return;
+  }
+  const recyclers = g.pickOrder.filter(pid => g.inventories[pid].includes('reciclador'));
+  if(recyclers.length){
+    g.shopStage = 'recycle';
+    g.recycleQueue = recyclers.slice();
+    g.recycleRemaining = 2;
+  } else {
+    g.phase = 'poison';
+  }
+}
+function renderShop(){
+  const g = game;
+  const recycling = g.shopStage === 'recycle';
+  const curId = recycling ? g.recycleQueue[0] : g.pickOrder[g.pickIdx];
+  $('shopHeader').textContent = recycling
+    ? `♻️ ${nameOf(curId)} elige comodines extra (Reciclador) — ${g.recycleRemaining} restante(s)`
+    : `${nameOf(curId)} elige un comodín (${g.inventories[curId].length}/${g.maxWildcards})`;
+  const canAct = localMode || myId === curId;
+  const wrap = $('shopShelves'); wrap.innerHTML = '';
+  CATS.forEach(cat=>{
+    const shelf = document.createElement('div'); shelf.className = 'shelf';
+    const h = document.createElement('div'); h.className = 'shelf-title'; h.textContent = CAT_LABEL[cat];
+    shelf.appendChild(h);
+    const itemsWrap = document.createElement('div'); itemsWrap.className = 'shelf-items';
+    Object.keys(WILDCARDS).filter(id => WILDCARDS[id].cat === cat).forEach(id=>{
+      const count = g.pool[id];
+      const btn = document.createElement('button');
+      btn.className = 'wc-item';
+      btn.title = WILDCARDS[id].desc;
+      btn.innerHTML = `<span class="wc-icon">${WILDCARDS[id].icon}</span><span>${WILDCARDS[id].name}</span><span class="wc-count">x${count}</span>`;
+      btn.disabled = count<=0 || !canAct;
+      if(!btn.disabled) btn.onclick = () => dispatch({type:'pickWildcard', actorId:curId, typeId:id});
+      itemsWrap.appendChild(btn);
+    });
+    shelf.appendChild(itemsWrap);
+    wrap.appendChild(shelf);
+  });
+  const inv = $('shopInventories'); inv.innerHTML = '<b style="font-size:0.85rem;">Comodines elegidos</b>';
+  g.players.forEach(p=>{
+    const d = document.createElement('div'); d.className = 'inv-row';
+    d.innerHTML = `<b>${p.name}</b>: ${g.inventories[p.id].map(id=>WILDCARDS[id].icon).join(' ')||'—'}`;
+    inv.appendChild(d);
+  });
+}
+
+/* ================= FASE VENENO ================= */
+function renderPoisonScreen(){
+  const g = game;
+  if(localMode){
+    const pending = g.players.find(p => g.poison[p.id]===undefined);
+    if(!pending) return;
+    $('poisonPrompt').textContent = `Pásale el móvil a ${pending.name}. Elige su chuche envenenada.`;
+    renderGameBoard($('poisonBoard'), g, { onPick: (i)=> dispatch({type:'setPoison', actorId:pending.id, cell:i}) });
+  } else {
+    const already = g.poison[myId] !== undefined;
+    $('poisonPrompt').textContent = already ? 'Ya elegiste. Esperando a los demás...' : 'Elige tu chuche envenenada. Nadie más la verá.';
+    renderGameBoard($('poisonBoard'), g, {
+      minePoisonSet: already ? new Set(g.poison[myId]) : new Set(),
+      onPick: already ? null : (i)=> dispatch({type:'setPoison', actorId:myId, cell:i})
+    });
+  }
+}
+
+/* ================= TABLERO (juego) ================= */
+function renderGameBoard(container, g, opts){
+  opts = opts || {};
+  container.style.gridTemplateColumns = `repeat(${g.size}, minmax(28px, 42px))`;
+  container.innerHTML = '';
+  for(let i=0;i<g.colors.length;i++){
+    const d = document.createElement('div');
+    d.className = 'candy';
+    d.style.background = g.colors[i];
+    const eatenInfo = g.eaten[i];
+    if(eatenInfo){
+      d.classList.add('eaten');
+      if(eatenInfo.by === 'destroyed'){ d.textContent = '💥'; }
+      else { d.textContent = '🧸'; if(isCellPoison(i)) d.classList.add('wasPoison'); }
+    } else {
+      d.textContent = '🧸';
+      if(g.publicInfo && g.publicInfo[i] !== undefined) d.classList.add(g.publicInfo[i] ? 'info-poison' : 'info-safe');
+    }
+    if(opts.minePoisonSet && opts.minePoisonSet.has(i)) d.classList.add('mine-poison');
+    if(opts.secretSet && opts.secretSet.has(i)) d.classList.add('secret-vision');
+    if(opts.rouletteSet && opts.rouletteSet.has(i)) d.classList.add('roulette-pick');
+    if(opts.pickedSet && opts.pickedSet.has(i)) d.classList.add('ui-picked');
+    if(opts.rowHighlight && opts.rowHighlight.has(Math.floor(i/g.size))) d.classList.add('row-highlight');
+    if(!eatenInfo && opts.onPick) d.onclick = () => opts.onPick(i);
+    container.appendChild(d);
+  }
+}
+
+/* ================= PANTALLA DE JUEGO ================= */
+function renderCurrentPhase(){
+  if(!game) return;
+  switch(game.phase){
+    case 'shopWheel': handleWheelPhase(); break;
+    case 'shop': show('screen-shop'); renderShop(); break;
+    case 'poison': show('screen-poison'); renderPoisonScreen(); break;
+    case 'eatWheel': handleWheelPhase(); break;
+    case 'game': show('screen-game'); renderGameScreenFull(); break;
+    case 'result': show('screen-result'); renderResultScreen(); break;
+  }
+}
+function renderGameScreenFull(){
+  const g = game;
+  const curId = currentPlayerId();
+  $('turnBanner').textContent = `👉 Turno de ${nameOf(curId)}`;
+  $('gameMsg').textContent = g.lastMessage || '';
+
+  renderLeftInventories();
+  renderRightActions(curId);
+  renderUiModeBar();
+  renderDefenseBox();
+  renderEquilibrioLog();
+
+  const iAmActor = localMode || myId === curId;
+  const minePoisonSet = (!localMode && g.poison[myId]) ? new Set(g.poison[myId]) : new Set();
+  const secretSet = new Set();
+  if(!localMode && g.secretVision[myId] !== undefined){
+    (g.poison[g.secretVision[myId]] || []).forEach(c=>secretSet.add(c));
+  }
+  const rouletteSet = g.pendingRuleta ? new Set(g.pendingRuleta.options) : null;
+  const pickedSet = (uiMode && uiMode.picked) ? new Set(uiMode.picked) : null;
+  const rowHighlight = (uiMode && uiMode.type==='equilibrio') ? new Set(uiMode.rows) : null;
+
+  renderGameBoard($('gameBoard'), g, {
+    minePoisonSet, secretSet, rouletteSet, pickedSet, rowHighlight,
+    onPick: computeBoardClickHandler(curId, iAmActor)
+  });
+}
+function renderDefenseBox(){
+  const box = $('defenseBox');
+  const pd = game.pendingDefense;
+  if(!pd){ box.classList.add('hidden'); box.innerHTML=''; return; }
+  box.classList.remove('hidden');
+  box.innerHTML = '';
+  const iAmTarget = localMode || myId === pd.targetId;
+  if(iAmTarget){
+    const title = document.createElement('div');
+    title.style.fontWeight = '700'; title.style.marginBottom = '0.5rem';
+    title.textContent = (localMode ? `Pásale el móvil a ${nameOf(pd.targetId)}. ` : '') + `${nameOf(pd.attackerId)} te ataca con ${WILDCARDS[pd.typeId].name}. ¿Usas Protección?`;
+    box.appendChild(title);
+    const yes = document.createElement('button'); yes.textContent = '🛡️ Usar Protección'; yes.style.marginRight='0.5rem';
+    yes.onclick = () => dispatch({type:'defenseChoice', actorId:pd.targetId, use:true});
+    const no = document.createElement('button'); no.className='secondary'; no.textContent = 'No usar';
+    no.onclick = () => dispatch({type:'defenseChoice', actorId:pd.targetId, use:false});
+    box.appendChild(yes); box.appendChild(no);
+  } else {
+    box.innerHTML = `<div class="msg">Esperando la decisión de ${nameOf(pd.targetId)}...</div>`;
+  }
+}
+function renderEquilibrioLog(){
+  const box = $('equilibrioLogBox');
+  if(!game.equilibrioLog.length){ box.textContent=''; return; }
+  box.innerHTML = game.equilibrioLog.map(e=>`⚖️ ${e.by} (filas ${e.rows.join(',')}): ${e.hasPoison?'SÍ hay veneno':'no hay veneno'}`).join('<br>');
+}
+function computeBoardClickHandler(curId, iAmActor){
+  const g = game;
+  if(g.pendingDefense) return null;
+  if(g.pendingRuleta){
+    if(g.pendingRuleta.activatorId === curId && iAmActor){
+      return (i) => { if(g.pendingRuleta.options.includes(i)) dispatch({type:'ruletaChoice', actorId:curId, cell:i}); };
+    }
+    return null;
+  }
+  if(!iAmActor) return null;
+  if(uiMode){
+    return (i) => handleUiModeCellClick(i);
+  }
+  const fl = g.flags[curId];
+  if(fl.forcedCells && fl.forcedCells.length){
+    const allowed = fl.forcedCells[0];
+    return (i) => { if(i===allowed) dispatch({type:'eat', actorId:curId, cell:i}); };
+  }
+  return (i) => dispatch({type:'eat', actorId:curId, cell:i});
+}
+function handleUiModeCellClick(i){
+  if(game.eaten[i] !== undefined) return;
+  if(uiMode.type==='lupa' || uiMode.type==='martillo'){
+    if(uiMode.picked.includes(i)) return;
+    uiMode.picked.push(i);
+    if(uiMode.picked.length >= uiMode.need){
+      const cells = uiMode.picked.slice(); const typeId = uiMode.type; const actorId = currentPlayerId();
+      uiMode = null;
+      dispatch({type:'activate', actorId, typeId, cells});
+    } else { renderGameScreenFull(); }
+  } else if(uiMode.type==='calavera'){
+    const actorId = currentPlayerId();
+    uiMode = null;
+    dispatch({type:'activate', actorId, typeId:'calavera', cell:i});
+  } else if(uiMode.type==='equilibrio'){
+    const row = Math.floor(i / game.size);
+    const idx = uiMode.rows.indexOf(row);
+    if(idx>=0) uiMode.rows.splice(idx,1); else uiMode.rows.push(row);
+    renderGameScreenFull();
+  }
+}
+function renderUiModeBar(){
+  const bar = $('uiModeBar');
+  bar.innerHTML = '';
+  if(!uiMode){ bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+  if(uiMode.type==='equilibrio'){
+    const span = document.createElement('span'); span.className='msg';
+    span.textContent = `Filas elegidas: ${uiMode.rows.length}/${uiMode.rowsNeeded}`;
+    bar.appendChild(span);
+    const confirmBtn = document.createElement('button'); confirmBtn.className='small'; confirmBtn.textContent='Confirmar';
+    confirmBtn.disabled = uiMode.rows.length !== uiMode.rowsNeeded;
+    confirmBtn.onclick = () => {
+      const rows = uiMode.rows.slice(); const actorId = currentPlayerId();
+      uiMode = null;
+      dispatch({type:'activate', actorId, typeId:'equilibrio', rows});
+    };
+    bar.appendChild(confirmBtn);
+  } else {
+    const span = document.createElement('span'); span.className='msg';
+    span.textContent = `Elige ${uiMode.need - uiMode.picked.length} chuche(s) más para ${WILDCARDS[uiMode.type].name}`;
+    bar.appendChild(span);
+  }
+  const cancelBtn = document.createElement('button'); cancelBtn.className='small secondary'; cancelBtn.textContent='Cancelar';
+  cancelBtn.onclick = () => { uiMode = null; renderGameScreenFull(); };
+  bar.appendChild(cancelBtn);
+}
+function renderLeftInventories(){
+  const box = $('otherInventories'); box.innerHTML = '';
+  const curId = currentPlayerId();
+  game.players.forEach(p=>{
+    const row = document.createElement('div');
+    row.className = 'inv-row' + (p.id===curId?' turn':'') + (!game.alive.includes(p.id)?' out':'');
+    const icons = game.inventories[p.id].map(t=>`<span title="${WILDCARDS[t].name}">${WILDCARDS[t].icon}</span>`).join(' ') || '—';
+    row.innerHTML = `<b>${p.name}${p.id===curId?' 🎯':''}${!game.alive.includes(p.id)?' 💀':''}</b><div class="inv-icons">${icons}</div>`;
+    box.appendChild(row);
+  });
+}
+function renderRightActions(curId){
+  const box = $('myActions'); box.innerHTML = '';
+  const g = game;
+  if(g.pendingDefense){ box.innerHTML = '<div class="msg">Esperando resolución de un ataque...</div>'; return; }
+  const iAmActor = localMode || myId === curId;
+  if(!iAmActor){ box.innerHTML = '<div class="msg">No es tu turno.</div>'; return; }
+  const fl = g.flags[curId];
+  if(fl.blocked){ box.innerHTML = '<div class="msg">🚫 Tus comodines están bloqueados este turno.</div>'; return; }
+  const inv = g.inventories[curId];
+  if(!inv.length){ box.innerHTML = '<div class="msg">Sin comodines.</div>'; return; }
+  inv.forEach(typeId=>{
+    const wc = WILDCARDS[typeId];
+    const btn = document.createElement('button'); btn.className = 'wc-item small';
+    btn.innerHTML = `${wc.icon} ${wc.name}`;
+    if(typeId==='proteccion'){
+      btn.title = 'Se activa solo cuando alguien te ataque (no se pulsa).';
+      btn.disabled = true;
+    } else {
+      btn.title = wc.desc;
+      btn.disabled = !!uiMode || !!g.pendingRuleta;
+      btn.onclick = () => startActivation(curId, typeId);
+    }
+    box.appendChild(btn);
+  });
+}
+
+/* ---- activar comodines ---- */
+function startActivation(actorId, typeId){
+  if(uiMode || game.pendingRuleta || game.pendingDefense) return;
+  if(SIMPLE_WILDCARDS.includes(typeId)){ dispatch({type:'activate', actorId, typeId}); return; }
+  if(typeId==='foca_gordita' || typeId==='bloquea_comodines' || typeId==='ruleta_rusa' || typeId==='secretito'){
+    openTargetModal(actorId, typeId); return;
+  }
+  if(typeId==='ladron'){ openTargetModal(actorId, typeId); return; }
+  if(typeId==='duplicador'){
+    openInventoryModal(game.inventories[actorId], (dupType)=>{
+      dispatch({type:'activate', actorId, typeId:'duplicador', dupType});
+    }); return;
+  }
+  if(typeId==='lupa'){ uiMode = {type:'lupa', need:2, picked:[]}; renderGameScreenFull(); return; }
+  if(typeId==='martillo'){ uiMode = {type:'martillo', need:2, picked:[]}; renderGameScreenFull(); return; }
+  if(typeId==='calavera'){ uiMode = {type:'calavera', need:1, picked:[]}; renderGameScreenFull(); return; }
+  if(typeId==='equilibrio'){ uiMode = {type:'equilibrio', rowsNeeded: Math.ceil(game.size/2), rows:[]}; renderGameScreenFull(); return; }
+}
+function openTargetModal(actorId, typeId){
+  const others = game.players.filter(p => p.id!==actorId && game.alive.includes(p.id));
+  openModalGeneric(`Elige objetivo para ${WILDCARDS[typeId].name}`, others.map(p=>({label:p.name, value:p.id})), (targetId)=>{
+    if(typeId==='ladron'){
+      const targetInv = [...new Set(game.inventories[targetId])];
+      if(!targetInv.length){ return; }
+      openModalGeneric(`¿Qué le robas a ${nameOf(targetId)}?`, targetInv.map(t=>({label:WILDCARDS[t].icon+' '+WILDCARDS[t].name, value:t})), (stealType)=>{
+        dispatch({type:'activate', actorId, typeId:'ladron', targetId, stealType});
+      });
+    } else {
+      dispatch({type:'activate', actorId, typeId, targetId});
+    }
+  });
+}
+function openInventoryModal(types, onPick){
+  const uniq = [...new Set(types)];
+  if(!uniq.length) return;
+  openModalGeneric('Elige un comodín tuyo', uniq.map(t=>({label:WILDCARDS[t].icon+' '+WILDCARDS[t].name, value:t})), onPick);
+}
+function openModalGeneric(title, options, onPick){
+  $('modalTitle').textContent = title;
+  const list = $('modalList'); list.innerHTML = '';
+  options.forEach(opt=>{
+    const b = document.createElement('button'); b.className = 'wc-item small';
+    b.textContent = opt.label;
+    b.onclick = () => { closeModal(); onPick(opt.value); };
+    list.appendChild(b);
+  });
+  $('actionModal').classList.remove('hidden');
+}
+function closeModal(){ $('actionModal').classList.add('hidden'); }
+$('btnModalCancel').onclick = closeModal;
+
+/* ================= APLICAR ACCIONES (autoritativo) ================= */
+function applyAction(a){
+  const g = game;
+  switch(a.type){
+    case 'pickWildcard': {
+      if(g.phase !== 'shop') return;
+      if(g.shopStage === 'recycle'){
+        const pid = g.recycleQueue[0];
+        if(a.actorId !== pid) return;
+        if(g.pool[a.typeId] <= 0) return;
+        g.pool[a.typeId]--;
+        g.inventories[pid].push(a.typeId);
+        g.recycleRemaining--;
+        if(g.recycleRemaining <= 0){
+          g.recycleQueue.shift();
+          if(g.recycleQueue.length){ g.recycleRemaining = 2; }
+          else { g.shopStage = null; g.phase = 'poison'; }
+        }
+        return;
+      }
+      const pid = g.pickOrder[g.pickIdx];
+      if(a.actorId !== pid) return;
+      if(g.inventories[pid].length >= g.maxWildcards) return;
+      if(g.pool[a.typeId] <= 0) return;
+      g.pool[a.typeId]--;
+      g.inventories[pid].push(a.typeId);
+      advancePickIdx();
+      return;
+    }
+    case 'setPoison': {
+      if(g.phase !== 'poison') return;
+      if(g.poison[a.actorId] !== undefined) return;
+      const taken = Object.values(g.poison).flat();
+      if(taken.includes(a.cell)) return;
+      g.poison[a.actorId] = [a.cell];
+      return;
+    }
+    case 'eat': {
+      if(g.phase !== 'game') return;
+      if(currentPlayerId() !== a.actorId) return;
+      resolveEat(a.actorId, a.cell);
+      return;
+    }
+    case 'activate': {
+      if(g.phase !== 'game') return;
+      if(currentPlayerId() !== a.actorId) return;
+      activateWildcard(a.actorId, a.typeId, a);
+      return;
+    }
+    case 'ruletaChoice': {
+      if(!g.pendingRuleta || g.pendingRuleta.activatorId !== a.actorId) return;
+      resolveRuletaChoice(a.cell);
+      return;
+    }
+    case 'defenseChoice': {
+      const pd = g.pendingDefense;
+      if(!pd || pd.targetId !== a.actorId) return;
+      g.pendingDefense = null;
+      if(a.use){
+        removeOne(pd.targetId, 'proteccion');
+        g.lastMessage = `${nameOf(pd.targetId)} bloqueó ${WILDCARDS[pd.typeId].name} de ${nameOf(pd.attackerId)} con Protección.`;
+      } else {
+        resolveTargetedEffect(pd.attackerId, pd.targetId, pd.typeId, pd.params);
+      }
+      return;
+    }
+  }
+}
+function activateWildcard(actorId, typeId, params){
+  const g = game; const fl = g.flags[actorId];
+  if(fl.blocked){ g.lastMessage = 'Tus comodines están bloqueados este turno.'; return; }
+  if(!g.inventories[actorId].includes(typeId)) return;
+
+  if(typeId==='saltar_turno'){
+    removeOne(actorId, typeId);
+    fl.forcedEats = 0; fl.forcedCells = [];
+    g.lastMessage = `${nameOf(actorId)} saltó su turno.`;
+    advanceTurn();
+    return;
+  }
+  if(typeId==='angel_guardian'){ removeOne(actorId,typeId); fl.guardianArmed=true; g.lastMessage=`${nameOf(actorId)} activó su Ángel Guardián.`; return; }
+  if(typeId==='revertidor'){ removeOne(actorId,typeId); fl.revertidor=true; g.lastMessage=`${nameOf(actorId)} activó el Revertidor.`; return; }
+
+  if(DEFENSIBLE_WILDCARDS.includes(typeId)){
+    const targetId = params.targetId;
+    removeOne(actorId,typeId);
+    if(g.inventories[targetId].includes('proteccion')){
+      g.pendingDefense = {attackerId:actorId, targetId, typeId, params};
+      g.lastMessage = `${nameOf(actorId)} intenta usar ${WILDCARDS[typeId].name} sobre ${nameOf(targetId)}...`;
+      return;
+    }
+    resolveTargetedEffect(actorId, targetId, typeId, params);
+    return;
+  }
+  if(typeId==='lupa'){
+    removeOne(actorId,typeId);
+    (params.cells||[]).forEach(c=>{ g.publicInfo[c] = isCellPoison(c); });
+    g.lastMessage = `${nameOf(actorId)} usó la Lupa.`;
+    return;
+  }
+  if(typeId==='equilibrio'){
+    removeOne(actorId,typeId);
+    const rows = params.rows||[];
+    let hasPoison = false;
+    rows.forEach(r=>{ for(let c=0;c<g.size;c++){ const idx=r*g.size+c; if(g.eaten[idx]===undefined && isCellPoison(idx)) hasPoison = true; } });
+    g.equilibrioLog.push({by:nameOf(actorId), rows: rows.slice().sort((a,b)=>a-b), hasPoison});
+    g.lastMessage = `${nameOf(actorId)} usó Equilibrio: en esas filas ${hasPoison ? 'SÍ' : 'NO'} hay una envenenada.`;
+    return;
+  }
+  if(typeId==='martillo'){
+    removeOne(actorId,typeId);
+    (params.cells||[]).forEach(c=>{ if(g.eaten[c]===undefined) g.eaten[c]={by:'destroyed'}; });
+    g.lastMessage = `${nameOf(actorId)} destruyó 2 chuches con el Martillo.`;
+    return;
+  }
+  if(typeId==='calavera'){
+    removeOne(actorId,typeId);
+    if(!g.poison[actorId]) g.poison[actorId]=[];
+    g.poison[actorId].push(params.cell);
+    g.lastMessage = `${nameOf(actorId)} añadió una 2ª envenenada con Calavera.`;
+    return;
+  }
+  if(typeId==='ladron'){
+    const targetId = params.targetId, stealType = params.stealType;
+    removeOne(actorId,typeId);
+    const idx = g.inventories[targetId].indexOf(stealType);
+    if(idx>=0){ g.inventories[targetId].splice(idx,1); g.inventories[actorId].push(stealType); }
+    g.lastMessage = `${nameOf(actorId)} robó ${WILDCARDS[stealType].name} a ${nameOf(targetId)}.`;
+    return;
+  }
+  if(typeId==='duplicador'){
+    const dupType = params.dupType;
+    removeOne(actorId,typeId);
+    g.inventories[actorId].push(dupType);
+    g.lastMessage = `${nameOf(actorId)} duplicó ${WILDCARDS[dupType].name}.`;
+    return;
+  }
+}
+function resolveTargetedEffect(actorId, targetId, typeId, params){
+  const g = game;
+  if(typeId==='foca_gordita'){
+    g.flags[targetId].forcedEats = 3;
+    g.lastMessage = `${nameOf(actorId)} usó Foca Gordita sobre ${nameOf(targetId)}: deberá comer 3.`;
+    return;
+  }
+  if(typeId==='bloquea_comodines'){
+    g.flags[targetId].blocked = true;
+    g.lastMessage = `${nameOf(actorId)} bloqueó los comodines de ${nameOf(targetId)}.`;
+    return;
+  }
+  if(typeId==='ruleta_rusa'){
+    const avail = [];
+    for(let i=0;i<g.colors.length;i++) if(g.eaten[i]===undefined) avail.push(i);
+    shuffleInPlace(avail);
+    g.pendingRuleta = {activatorId:actorId, targetId, options:avail.slice(0,3)};
+    g.lastMessage = `${nameOf(actorId)} gira la Ruleta Rusa contra ${nameOf(targetId)}...`;
+    return;
+  }
+  if(typeId==='secretito'){
+    g.secretVision[actorId] = targetId;
+    g.lastMessage = `${nameOf(actorId)} usó Secretito sobre ${nameOf(targetId)}.`;
+    return;
+  }
+}
+function resolveRuletaChoice(cell){
+  const g = game; const pr = g.pendingRuleta; if(!pr) return;
+  const others = pr.options.filter(c=>c!==cell);
+  const fl = g.flags[pr.targetId];
+  fl.forcedCells = (fl.forcedCells||[]).concat(others);
+  g.pendingRuleta = null;
+  resolveEat(pr.activatorId, cell);
+}
+function resolveEat(actorId, cell){
+  const g = game;
+  if(g.eaten[cell] !== undefined) return;
+  const fl = g.flags[actorId];
+  let poisoned = isCellPoison(cell);
+  if(fl.revertidor){
+    poisoned = !poisoned;
+    fl.revertidor = false;
+    g.lastMessage = poisoned
+      ? `${nameOf(actorId)} comió una segura, pero el Revertidor la volvió veneno.`
+      : `${nameOf(actorId)} comió veneno, pero el Revertidor lo salvó.`;
+  } else {
+    g.lastMessage = '';
+  }
+  g.eaten[cell] = {by: actorId};
+  let died = false;
+  if(poisoned){
+    if(fl.guardianArmed){
+      fl.guardianArmed = false;
+      g.lastMessage = `${nameOf(actorId)} debía morir, pero su Ángel Guardián lo revivió.`;
+    } else {
+      g.alive = g.alive.filter(id=>id!==actorId);
+      died = true;
+      if(!g.lastMessage) g.lastMessage = `${nameOf(actorId)} comió la envenenada y queda eliminado.`;
+    }
+  } else if(!g.lastMessage){
+    g.lastMessage = `${nameOf(actorId)} comió una chuche segura.`;
+  }
+  if(fl.forcedCells && fl.forcedCells.length && fl.forcedCells[0]===cell) fl.forcedCells.shift();
+  let mustEatAgain = false;
+  if(fl.forcedEats > 0){
+    fl.forcedEats--;
+    if(!died && fl.forcedEats > 0) mustEatAgain = true;
+  }
+  if(!died && fl.forcedCells && fl.forcedCells.length) mustEatAgain = true;
+
+  if(g.alive.length <= 1){ g.phase='result'; g.resultWinnerId = g.alive[0]||null; g.resultWinners=null; return; }
+  if(poisonRemainingAll() === 0){ g.phase='result'; g.resultWinnerId=null; g.resultWinners=g.alive.slice(); return; }
+  if(mustEatAgain) return;
+  advanceTurn();
+}
+function advanceTurn(){
+  const g = game;
+  const prevId = currentPlayerId();
+  if(g.flags[prevId]) g.flags[prevId].blocked = false;
+  do{ g.turnIdx = (g.turnIdx+1) % g.order.length; } while(!g.alive.includes(currentPlayerId()));
+}
+
+function renderResultScreen(){
+  const g = game;
+  if(g.resultWinnerId){
+    $('resultEmoji').textContent = '🏆';
+    $('resultText').textContent = `¡${nameOf(g.resultWinnerId)} gana!`;
+  } else if(g.resultWinners && g.resultWinners.length){
+    $('resultEmoji').textContent = '🎉';
+    $('resultText').textContent = `Sobreviven: ${g.resultWinners.map(nameOf).join(', ')}`;
+  } else {
+    $('resultEmoji').textContent = '💀';
+    $('resultText').textContent = 'Todos envenenados...';
+  }
+}
+$('btnReplay').onclick = () => { cleanupNetwork(); location.reload(); };
+
+/* ================= MÚSICA (Web Audio, sin archivos externos) ================= */
+let audioCtx = null, musicOn = false, musicTimer = null;
+const MUSIC_NOTES = [261.63,329.63,392.00,329.63,293.66,349.23,440.00,349.23];
+function playNote(freq, time, dur){
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'triangle';
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.0001, time);
+  gain.gain.linearRampToValueAtTime(0.06, time+0.02);
+  gain.gain.linearRampToValueAtTime(0.0001, time+dur);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(time); osc.stop(time+dur+0.02);
+}
+function scheduleMusicLoop(){
+  if(!musicOn) return;
+  const now = audioCtx.currentTime;
+  const noteDur = 0.28;
+  MUSIC_NOTES.forEach((freq, i) => playNote(freq, now + i*noteDur, noteDur*0.9));
+  musicTimer = setTimeout(scheduleMusicLoop, MUSIC_NOTES.length*noteDur*1000);
+}
+$('btnMusic').onclick = () => {
+  musicOn = !musicOn;
+  $('btnMusic').textContent = musicOn ? '🔊 Música' : '🔇 Música';
+  if(musicOn){
+    if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended') audioCtx.resume();
+    scheduleMusicLoop();
+  } else {
+    clearTimeout(musicTimer);
+  }
+};
+</script>
+</body>
+</html>
