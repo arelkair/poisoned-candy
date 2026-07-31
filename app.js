@@ -202,10 +202,20 @@ function leaveOnlineGame(){
   show('screen-menu');
 }
 
+// STUN por sí solo no basta para conectar a jugadores en redes distintas (móvil, wifis
+// con NAT restrictivo, etc.) — se añade un TURN público de respaldo para esos casos.
+const ICE_CONFIG = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+  ]
+};
 function startOnlineHost(){
   isHost = true;
   const code = roomCode();
-  peer = new Peer('candy-'+code, {debug:0});
+  peer = new Peer('candy-'+code, {debug:0, config: ICE_CONFIG});
   peer.on('open', id => {
     myId = id;
     lobbyPlayersList = [{id: myId, name: myName}];
@@ -277,16 +287,23 @@ $('btnStartOnline').onclick = () => {
   openConfigScreen();
 };
 
+const JOIN_TIMEOUT_MS = 15000;
 $('btnJoinBack').onclick = () => show('screen-menu');
 $('btnDoJoin').onclick = () => {
   const code = $('joinCode').value.trim().toUpperCase();
   if(!code){ $('joinMsg').textContent = 'Escribe un código.'; return; }
   isHost = false;
-  peer = new Peer(undefined, {debug:0});
+  $('joinMsg').textContent = 'Conectando...';
+  peer = new Peer(undefined, {debug:0, config: ICE_CONFIG});
   peer.on('open', id => {
     myId = id;
     hostConn = peer.connect('candy-'+code, {reliable:true});
+    const timeout = setTimeout(() => {
+      $('joinMsg').textContent = 'No se pudo conectar. Comprueba el código y que ambos tengáis buena conexión, o probad de nuevo.';
+      cleanupNetwork();
+    }, JOIN_TIMEOUT_MS);
     hostConn.on('open', () => {
+      clearTimeout(timeout);
       hostConn.send({type:'join', name: myName});
       show('screen-lobby');
       $('roomCodeDisplay').textContent = code;
@@ -295,6 +312,10 @@ $('btnDoJoin').onclick = () => {
     });
     hostConn.on('data', data => handlePeerData(data));
     hostConn.on('close', () => { $('lobbyMsg').textContent = 'Conexión perdida con el anfitrión.'; });
+    hostConn.on('error', () => {
+      clearTimeout(timeout);
+      $('joinMsg').textContent = 'No se pudo conectar con esa sala.';
+    });
   });
   peer.on('error', err => { $('joinMsg').textContent = 'Error: '+err.type; });
 };
