@@ -1,10 +1,9 @@
-/* ---------- utilidades ---------- */
 const COLORS = ['#e63946','#f4a300','#ffe135','#38b000','#1e90ff','#00e5ff','#7cff6b','#ff6ec7','#a259ff'];
 const $ = id => document.getElementById(id);
 const show = id => { document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden')); $(id).classList.remove('hidden'); };
 const rand = n => Math.floor(Math.random()*n);
 const shuffleInPlace = arr => { for(let i=arr.length-1;i>0;i--){const j=rand(i+1);[arr[i],arr[j]]=[arr[j],arr[i]];} return arr; };
-const boardSizeFor = n => n + 3; // 2->5,3->6,4->7,5->8
+const boardSizeFor = n => n + 3;
 const roomCode = () => Array.from({length:5},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[rand(32)]).join('');
 const maxWildcardsFor = n => n<=2 ? 2 : 3;
 function rotationFrom(ids, startId){
@@ -13,7 +12,6 @@ function rotationFrom(ids, startId){
 }
 function clamp(v, min, max){ return Math.min(max, Math.max(min, v)); }
 
-/* ---------- notificaciones ---------- */
 function showToast(text, kind){
   let layer = document.getElementById('toastLayer');
   if(!layer){
@@ -28,7 +26,6 @@ function showToast(text, kind){
   setTimeout(()=>{ t.remove(); }, 3000);
 }
 
-/* ---------- comodines ---------- */
 const WILDCARDS = {
   saltar_turno:      {name:'Saltar turno',      cat:'protectores', icon:'⏭️', desc:'Salta tu turno.'},
   angel_guardian:    {name:'Ángel Guardián',    cat:'protectores', icon:'👼', desc:'Si mueres en tu próximo turno, revives.'},
@@ -51,10 +48,9 @@ const CAT_LABEL = {protectores:'🛡️ Protectores', ataque:'⚔️ Ataque', in
 const SIMPLE_WILDCARDS = ['saltar_turno','angel_guardian','revertidor'];
 const DEFENSIBLE_WILDCARDS = ['foca_gordita','bloquea_comodines','ruleta_rusa','secretito'];
 
-/* ---------- estado del juego ---------- */
 let game = null;
 let localMode = false;
-let uiMode = null;      // selección de celdas/filas en curso
+let uiMode = null;
 let lastWheelId = -1;
 
 const SKINS = { osito:'🧸', caramelo:'🍬', piruleta:'🍭', donut:'🍩', galleta:'🍪' };
@@ -117,7 +113,6 @@ function pruneForcedCells(fl){
   }
 }
 
-/* ================= NOMBRE GUARDADO (solo online) ================= */
 const NAME_STORAGE_KEY = 'candy_last_name';
 function loadSavedName(){ try{ return localStorage.getItem(NAME_STORAGE_KEY) || ''; }catch(e){ return ''; } }
 function saveNameIfOnline(){
@@ -126,7 +121,6 @@ function saveNameIfOnline(){
   }
 }
 
-/* ================= MENU / NOMBRE ================= */
 let myName = '';
 let pendingAction = null;
 $('btnLocal').onclick = () => { pendingAction = 'local'; $('myName').value = ''; show('screen-name'); };
@@ -143,7 +137,6 @@ $('btnNameContinue').onclick = () => {
   else if(pendingAction === 'join'){ show('screen-join'); }
 };
 
-/* ================= LOCAL MODE ================= */
 function buildLocalNameInputs(){
   const wrap = $('localNames');
   const build = () => {
@@ -177,7 +170,6 @@ $('btnLocalContinue').onclick = () => {
   openConfigScreen();
 };
 
-/* ================= RED (PeerJS, host-autoritativo) ================= */
 let peer = null, myId = null, isHost = false;
 let hostConns = {};
 let hostConn = null;
@@ -202,8 +194,6 @@ function leaveOnlineGame(){
   show('screen-menu');
 }
 
-// STUN por sí solo no basta para conectar a jugadores en redes distintas (móvil, wifis
-// con NAT restrictivo, etc.) — se añade un TURN público de respaldo para esos casos.
 const ICE_CONFIG = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
@@ -329,7 +319,6 @@ function handlePeerData(data){
   else if(data.type === 'sync'){ game = data.game; renderCurrentPhase(); }
 }
 
-/* ================= CONFIGURACIÓN DE SALA ================= */
 let pendingPlayers = [];
 function populateTimeSelect(selId, defaultVal){
   const sel = $(selId); sel.innerHTML = '';
@@ -410,7 +399,6 @@ function dealWildcardsRandom(){
   });
 }
 
-/* ================= DISPATCH (unifica local y online) ================= */
 function dispatch(action){
   if(localMode || isHost){ applyAction(action); afterMutation(); }
   else if(hostConn){ hostConn.send({type:'action', action}); }
@@ -425,7 +413,6 @@ function afterMutation(){
   renderCurrentPhase();
 }
 
-/* ================= RUEDA ================= */
 function beginWheel(purpose){
   const g = game;
   const poolIds = purpose==='shop' ? g.players.map(p=>p.id) : g.alive;
@@ -469,7 +456,6 @@ function handleWheelPhase(){
   lastWheelId = game.wheelId;
   const names = game.players.map(p=>p.name);
   runWheelAnimation(names, nameOf(game.wheelResultId), () => {
-    // red de seguridad: si algo falla al cerrar la rueda, no debe quedarse la pantalla congelada
     try{
       if(localMode || isHost) finalizeWheel();
     }catch(e){
@@ -479,7 +465,6 @@ function handleWheelPhase(){
   });
 }
 
-/* ================= FASE TIENDA (comodines) ================= */
 function advancePickIdx(){
   const g = game;
   const n = g.pickOrder.length;
@@ -535,9 +520,6 @@ function autoPickForCurrent(){
   dispatch({type:'pickWildcard', actorId:curId, typeId});
 }
 
-/* ================= CRONÓMETRO DE TURNO ================= */
-// ponytail: se reinicia en cada acción exitosa (no solo al cambiar de turno) para simplificar;
-// una serie de mordiscos obligatorios (Cerdo Gordito/Ruleta Rusa) por tanto siempre tiene tiempo fresco.
 let turnWarnPlayed = false;
 function resetTurnTimer(){
   turnWarnPlayed = false;
@@ -576,7 +558,6 @@ function autoActForTimeout(){
   if(avail.length) dispatch({type:'eat', actorId:curId, cell:avail[rand(avail.length)]});
 }
 
-/* ================= CRONÓMETRO DE VENENO ================= */
 let poisonTickHandle = null;
 function resetPoisonTimer(){
   if(game.poisonTimeSec === 0 || game.poisonTimeSec === 'inf'){ game.poisonTimerEnd = null; return; }
@@ -662,7 +643,6 @@ function renderShop(){
   });
 }
 
-/* ================= FASE VENENO ================= */
 let poisonPickState = null;
 function handlePoisonPick(forId, i){
   if(!poisonPickState || poisonPickState.forId !== forId) return;
@@ -705,7 +685,6 @@ function renderPoisonScreen(){
   }
 }
 
-/* ================= TABLERO (juego) ================= */
 function renderGameBoard(container, g, opts){
   opts = opts || {};
   const skinEmoji = SKINS[g.skin] || '🧸';
@@ -743,7 +722,6 @@ function renderGameBoard(container, g, opts){
   }
 }
 
-/* ================= PANTALLA DE JUEGO ================= */
 let lastPlayedEventSeq = -1;
 function playEventSound(){
   if(!game.event || game.event.seq === lastPlayedEventSeq) return;
@@ -951,7 +929,6 @@ function renderRightActions(curId){
   }
 }
 
-/* ---- activar comodines ---- */
 function startActivation(actorId, typeId){
   if(uiMode || game.pendingRuleta || game.pendingDefense) return;
   if(SIMPLE_WILDCARDS.includes(typeId)){ dispatch({type:'activate', actorId, typeId}); return; }
@@ -1002,7 +979,6 @@ function openModalGeneric(title, options, onPick){
 function closeModal(){ $('actionModal').classList.add('hidden'); }
 $('btnModalCancel').onclick = closeModal;
 
-/* ================= APLICAR ACCIONES (autoritativo) ================= */
 function applyAction(a){
   const g = game;
   switch(a.type){
@@ -1274,7 +1250,6 @@ function renderResultScreen(){
 }
 $('btnReplay').onclick = () => { cleanupNetwork(); location.reload(); };
 
-/* ================= MÚSICA (Web Audio, sin archivos externos) ================= */
 let audioCtx = null, musicOn = false, musicTimer = null;
 const MUSIC_TRACKS = {
   alegre:    {label:'Alegre',   type:'triangle', bassType:'sine',     noteDur:0.28, notes:[261.63,329.63,392.00,329.63,293.66,349.23,440.00,349.23]},
@@ -1330,7 +1305,6 @@ $('btnMusic').onclick = () => {
   }
 };
 
-/* ================= EFECTOS DE SONIDO ================= */
 function ensureAudio(){
   if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
   if(audioCtx.state === 'suspended') audioCtx.resume();
@@ -1366,7 +1340,6 @@ function sfxTimeWarning(){ beep(740, 0.1, 'square', 0.12); beep(740, 0.1, 'squar
 function sfxWin(){ [523,659,784,1046].forEach((f,i)=>beep(f, 0.28, 'triangle', 0.16, i*0.15)); }
 function sfxLose(){ [400,340,280,220].forEach((f,i)=>beep(f, 0.3, 'sawtooth', 0.16, i*0.18)); }
 
-/* ================= CONFETI ================= */
 function launchConfetti(){
   const layer = document.createElement('div');
   layer.id = 'confettiLayer';
@@ -1384,7 +1357,6 @@ function launchConfetti(){
   setTimeout(()=>layer.remove(), 4600);
 }
 
-/* ================= TECLADO ================= */
 document.addEventListener('keydown', (e) => {
   if(e.key === 'Escape'){
     if(!$('actionModal').classList.contains('hidden')) closeModal();
