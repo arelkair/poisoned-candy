@@ -1,0 +1,8 @@
+.claude/
+.remember/
+
+.DS_Store
+Thumbs.db
+*.log
+node_modules/
+.vercel

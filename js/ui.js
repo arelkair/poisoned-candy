@@ -30,6 +30,14 @@ function initModal(){
   $('btnModalCancel').onclick = closeModal;
 }
 
+function initTheme(){
+  $('btnTheme').onclick = () => {
+    const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = next;
+    try{ localStorage.setItem('theme', next); }catch(e){}
+  };
+}
+
 function initKeyboardShortcuts(){
   document.addEventListener('keydown', (e) => {
     if(e.key === 'Escape'){
