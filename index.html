@@ -19,24 +19,32 @@
 <body>
 
 <div class="topbar">
-  <div class="brand">
-    <h1>🍬 Chuche Envenenada</h1>
-  </div>
-  <div class="settings-cluster">
-    <select id="musicTrack" title="Pista de música"></select>
-    <button id="btnMusic" class="icon-btn" title="Música">🔇</button>
-    <button id="btnTheme" class="icon-btn" title="Tema">
-      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
-      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
-    </button>
+  <div class="topbar-inner">
+    <div class="brand">
+      <h1>🍬 Chuche Envenenada</h1>
+    </div>
+    <div class="settings-cluster">
+      <select id="musicTrack" title="Pista de música"></select>
+      <button id="btnMusic" class="icon-btn" title="Música">🔇</button>
+      <button id="btnTheme" class="icon-btn" title="Tema">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+    </div>
   </div>
 </div>
 
 <div class="screen" id="screen-menu">
-  <div class="card">
+  <div class="hero">
+    <div class="hero-emoji">🍬</div>
+    <h2>Chuche Envenenada</h2>
+    <p>Come chuches, evita el veneno. En persona o en línea.</p>
+  </div>
+  <div class="card action-group">
     <button id="btnLocal">🎮 Jugar en este dispositivo</button>
-    <button id="btnCreateRoom" style="margin-top:0.6rem;">🌐 Crear sala online</button>
-    <button id="btnJoinRoom" class="secondary" style="margin-top:0.6rem;">🔑 Unirse a una sala</button>
+    <div class="divider-label">Online</div>
+    <button id="btnCreateRoom">🌐 Crear sala</button>
+    <button id="btnJoinRoom" class="secondary">🔑 Unirse a una sala</button>
   </div>
 </div>
 
@@ -71,12 +79,12 @@
 </div>
 
 <div class="screen hidden" id="screen-lobby">
-  <div class="card center">
+  <div class="card room-code-card">
     <div class="msg">Código de sala</div>
     <div id="roomCodeDisplay">----</div>
   </div>
   <div class="card">
-    <div class="msg" style="margin-bottom:0.5rem;">Jugadores conectados</div>
+    <div class="section-title">Jugadores conectados</div>
     <div class="players-box" id="lobbyPlayers"></div>
   </div>
   <button id="btnStartOnline" class="hidden">Empezar partida</button>
@@ -87,57 +95,82 @@
 <div class="screen hidden" id="screen-config">
   <div class="card">
     <b>⚙️ Configuración de la sala</b>
-    <div class="config-grid" style="margin-top:0.8rem;">
-      <div class="config-item full">
-        <label class="field-label">Tablero (filas × columnas, 2-10)</label>
-        <div class="row">
-          <input type="number" id="cfgRows" min="2" max="10">
-          <input type="number" id="cfgCols" min="2" max="10">
+
+    <div class="config-section" style="margin-top:0.9rem;">
+      <div class="section-title">Tablero</div>
+      <div class="config-grid">
+        <div class="config-item full">
+          <label class="field-label">Filas × columnas (2-10)</label>
+          <div class="row">
+            <input type="number" id="cfgRows" min="2" max="10">
+            <input type="number" id="cfgCols" min="2" max="10">
+          </div>
+        </div>
+        <div class="config-item full">
+          <label class="field-label">Estilo de la chuchería <span class="skin-preview" id="skinPreview">🧸</span></label>
+          <select id="cfgSkin"></select>
         </div>
       </div>
-      <div class="config-item">
-        <label class="field-label">Comodines máx. por jugador</label>
-        <input type="number" id="cfgMaxWildcards" min="0" max="15">
-      </div>
-      <div class="config-item">
-        <label class="field-label">Stock de cada comodín</label>
-        <input type="number" id="cfgStock" min="1" max="9">
-      </div>
-      <div class="config-item">
-        <label class="field-label">Tiempo para actuar</label>
-        <select id="cfgActionTime"></select>
-      </div>
-      <div class="config-item">
-        <label class="field-label">Tiempo para elegir veneno</label>
-        <select id="cfgPoisonTime"></select>
-      </div>
-      <div class="config-item">
-        <label class="field-label">Chuches envenenadas / jugador</label>
-        <input type="number" id="cfgPoisonCount" min="1" max="9">
-      </div>
-      <div class="config-item">
-        <label class="field-label">Vidas por jugador</label>
-        <input type="number" id="cfgLives" min="1" max="5">
-      </div>
-      <div class="config-item full">
-        <label class="field-label">Estilo de la chuchería <span class="skin-preview" id="skinPreview">🧸</span></label>
-        <select id="cfgSkin"></select>
-      </div>
-      <div class="config-item full toggle-row">
-        <span>Comodines al azar (sin tienda)</span>
-        <input type="checkbox" id="cfgRandom">
+    </div>
+
+    <div class="config-section" style="margin-top:0.6rem;">
+      <div class="section-title">Tiempo</div>
+      <div class="config-grid">
+        <div class="config-item">
+          <label class="field-label">Tiempo para actuar</label>
+          <select id="cfgActionTime"></select>
+        </div>
+        <div class="config-item">
+          <label class="field-label">Tiempo para elegir veneno</label>
+          <select id="cfgPoisonTime"></select>
+        </div>
       </div>
     </div>
+
+    <div class="config-section" style="margin-top:0.6rem;">
+      <div class="section-title">Comodines</div>
+      <div class="config-grid">
+        <div class="config-item">
+          <label class="field-label">Máx. por jugador</label>
+          <input type="number" id="cfgMaxWildcards" min="0" max="15">
+        </div>
+        <div class="config-item">
+          <label class="field-label">Stock de cada comodín</label>
+          <input type="number" id="cfgStock" min="1" max="9">
+        </div>
+        <div class="config-item full toggle-row">
+          <span>Comodines al azar (sin tienda)</span>
+          <input type="checkbox" id="cfgRandom">
+        </div>
+      </div>
+    </div>
+
+    <div class="config-section" style="margin-top:0.6rem;">
+      <div class="section-title">Reglas</div>
+      <div class="config-grid">
+        <div class="config-item">
+          <label class="field-label">Chuches envenenadas / jugador</label>
+          <input type="number" id="cfgPoisonCount" min="1" max="9">
+        </div>
+        <div class="config-item">
+          <label class="field-label">Vidas por jugador</label>
+          <input type="number" id="cfgLives" min="1" max="5">
+        </div>
+      </div>
+    </div>
+
     <button id="btnConfigContinue" style="margin-top:1rem;">Empezar partida</button>
     <button class="secondary" id="btnConfigBack" style="margin-top:0.5rem;">Volver</button>
   </div>
 </div>
 
-<div class="screen hidden" id="screen-shop">
+<div class="screen screen-wide hidden" id="screen-shop">
   <div class="card center" id="shopHeader">Elige un comodín</div>
-  <div class="msg" id="shopTimer" style="font-size:1.1rem; font-weight:700; color:var(--neon);"></div>
-  <div class="card" id="shopShelves"></div>
-  <div class="card" id="shopInventories"></div>
+  <div class="msg" id="shopTimer" style="font-size:1.1rem; font-weight:700;"></div>
+  <div class="shop-layout">
+    <div class="card shop-shelves-card" id="shopShelves"></div>
+    <div class="card shop-inventory-card" id="shopInventories"></div>
+  </div>
 </div>
 
 <div class="screen hidden" id="screen-poison">
@@ -155,9 +188,11 @@
   </div>
 </div>
 
-<div class="screen hidden" id="screen-game">
-  <div class="turn-banner" id="turnBanner">Turno de ...</div>
-  <button id="btnGameLeave" class="secondary small hidden" style="align-self:center;">Abandonar partida</button>
+<div class="screen screen-wide hidden" id="screen-game">
+  <div class="game-header">
+    <div class="turn-banner" id="turnBanner">Turno de ...</div>
+    <button id="btnGameLeave" class="secondary small hidden">Abandonar partida</button>
+  </div>
   <div class="game-layout">
     <div class="side-panel" id="otherInventoriesWrap">
       <b style="font-size:0.85rem;">Comodines</b>
@@ -169,10 +204,12 @@
       <div id="myActions"></div>
     </div>
   </div>
-  <div class="card hidden" id="defenseBox"></div>
-  <div class="uimode-bar hidden" id="uiModeBar"></div>
-  <div class="msg" id="gameMsg"></div>
-  <div class="msg" id="equilibrioLogBox"></div>
+  <div class="status-stack">
+    <div class="card hidden" id="defenseBox"></div>
+    <div class="uimode-bar hidden" id="uiModeBar"></div>
+    <div class="msg" id="gameMsg"></div>
+    <div class="msg" id="equilibrioLogBox"></div>
+  </div>
 </div>
 
 <div class="screen hidden" id="screen-result">
