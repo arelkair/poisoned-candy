@@ -4,7 +4,7 @@ function renderLobby(){
   lobbyPlayersList.forEach(p=>{
     const chip = document.createElement('div');
     chip.className = 'player-chip' + (p.id===myId?' me':'');
-    chip.textContent = p.name + (p.id===myId ? (isHost ? ' (tú, host)' : ' (tú)') : '');
+    chip.textContent = p.name + (p.id===myId ? (isHost ? t('lobby.youHostSuffix') : t('lobby.youSuffix')) : '');
     box.appendChild(chip);
   });
 }
@@ -16,21 +16,21 @@ function renderShop(){
   const recycling = g.shopStage === 'recycle';
   const curId = recycling ? g.recycleQueue[0] : g.pickOrder[g.pickIdx];
   $('shopHeader').textContent = recycling
-    ? `♻️ ${nameOf(curId)} elige comodines extra (Reciclador) — ${g.recycleRemaining} restante(s)`
-    : `${nameOf(curId)} elige un comodín (${g.inventories[curId].length}/${g.maxWildcards})`;
+    ? t('shop.recycleHeader', {name: nameOf(curId), n: g.recycleRemaining})
+    : t('shop.pickHeader', {name: nameOf(curId), count: g.inventories[curId].length, max: g.maxWildcards});
   const canAct = localMode || myId === curId;
   const wrap = $('shopShelves'); wrap.innerHTML = '';
   CATS.forEach(cat=>{
     const shelf = document.createElement('div'); shelf.className = 'shelf';
-    const h = document.createElement('div'); h.className = 'shelf-title'; h.textContent = CAT_LABEL[cat];
+    const h = document.createElement('div'); h.className = 'shelf-title'; h.textContent = catLabel(cat);
     shelf.appendChild(h);
     const itemsWrap = document.createElement('div'); itemsWrap.className = 'shelf-items';
     Object.keys(WILDCARDS).filter(id => WILDCARDS[id].cat === cat).forEach(id=>{
       const count = g.pool[id];
       const btn = document.createElement('button');
       btn.className = 'wc-item';
-      btn.title = WILDCARDS[id].desc;
-      btn.innerHTML = `<span class="wc-icon">${WILDCARDS[id].icon}</span><span>${WILDCARDS[id].name}</span><span class="wc-count">x${count}</span>`;
+      btn.title = wcDesc(id);
+      btn.innerHTML = `<span class="wc-icon">${WILDCARDS[id].icon}</span><span>${wcName(id)}</span><span class="wc-count">x${count}</span>`;
       btn.disabled = count<=0 || !canAct;
       if(!btn.disabled) btn.onclick = () => dispatch({type:'pickWildcard', actorId:curId, typeId:id});
       itemsWrap.appendChild(btn);
@@ -38,7 +38,7 @@ function renderShop(){
     shelf.appendChild(itemsWrap);
     wrap.appendChild(shelf);
   });
-  const inv = $('shopInventories'); inv.innerHTML = '<b style="font-size:0.85rem;">Comodines elegidos</b>';
+  const inv = $('shopInventories'); inv.innerHTML = `<b style="font-size:0.85rem;">${t('shop.chosenTitle')}</b>`;
   g.players.forEach(p=>{
     const d = document.createElement('div'); d.className = 'inv-row';
     d.innerHTML = `<b>${p.name}</b>: ${g.inventories[p.id].map(id=>WILDCARDS[id].icon).join(' ')||'—'}`;
@@ -54,7 +54,7 @@ function renderPoisonScreen(){
     const pending = g.players.find(p => g.poison[p.id]===undefined);
     if(!pending) return;
     if(!poisonPickState || poisonPickState.forId !== pending.id) poisonPickState = {forId: pending.id, picked: []};
-    $('poisonPrompt').textContent = `Pásale el móvil a ${pending.name}. Elige ${g.poisonCount} chuche(s) envenenada(s) (${poisonPickState.picked.length}/${g.poisonCount}).`;
+    $('poisonPrompt').textContent = t('poison.passDevice', {name: pending.name, n: g.poisonCount, picked: poisonPickState.picked.length});
     renderGameBoard($('poisonBoard'), g, {
       pickedSet: new Set(poisonPickState.picked),
       onPick: (i)=> handlePoisonPick(pending.id, i)
@@ -62,11 +62,11 @@ function renderPoisonScreen(){
   } else {
     const already = g.poison[myId] !== undefined;
     if(already){
-      $('poisonPrompt').textContent = 'Ya elegiste. Esperando a los demás...';
+      $('poisonPrompt').textContent = t('poison.alreadyPicked');
       renderGameBoard($('poisonBoard'), g, { minePoisonSet: new Set(g.poison[myId]) });
     } else {
       if(!poisonPickState || poisonPickState.forId !== myId) poisonPickState = {forId: myId, picked: []};
-      $('poisonPrompt').textContent = `Elige ${g.poisonCount} chuche(s) envenenada(s) (${poisonPickState.picked.length}/${g.poisonCount}). Nadie más la verá.`;
+      $('poisonPrompt').textContent = t('poison.pickPrompt', {n: g.poisonCount, picked: poisonPickState.picked.length});
       renderGameBoard($('poisonBoard'), g, {
         pickedSet: new Set(poisonPickState.picked),
         onPick: (i)=> handlePoisonPick(myId, i)
@@ -141,8 +141,8 @@ function renderGameScreenFull(){
   ensureGameTicker();
   updateLeaveButtonVisibility();
   const curId = currentPlayerId();
-  $('turnBanner').textContent = `Turno de ${nameOf(curId)}`;
-  $('gameMsg').textContent = g.lastMessage || '';
+  $('turnBanner').textContent = t('game.turnOf', {name: nameOf(curId)});
+  $('gameMsg').textContent = g.lastMessage ? t(g.lastMessage.key, g.lastMessage.params) : '';
 
   renderLeftInventories();
   renderRightActions(curId);
@@ -165,9 +165,9 @@ function renderGameScreenFull(){
     pruneForcedCells(fl);
     if(fl.forcedCells && fl.forcedCells.length){
       forcedSet = new Set([fl.forcedCells[0]]);
-      $('gameMsg').textContent = 'Debes comer la chuche marcada en azul.';
+      $('gameMsg').textContent = t('game.forcedCell');
     } else if(fl.forcedEats > 0){
-      $('gameMsg').textContent = `Te quedan ${fl.forcedEats} mordisco(s) obligatorios.`;
+      $('gameMsg').textContent = t('game.forcedEatsRemaining', {n: fl.forcedEats});
     }
   }
 
@@ -187,22 +187,25 @@ function renderDefenseBox(){
   if(iAmTarget){
     const title = document.createElement('div');
     title.style.fontWeight = '700'; title.style.marginBottom = '0.5rem';
-    title.textContent = (localMode ? `Pásale el móvil a ${nameOf(pd.targetId)}. ` : '') + `${nameOf(pd.attackerId)} te ataca con ${WILDCARDS[pd.typeId].name}. ¿Usas Protección?`;
+    title.textContent = (localMode ? t('game.attackPromptLocal', {target: nameOf(pd.targetId)}) : '')
+      + t('game.attackPrompt', {atk: nameOf(pd.attackerId), wc: wcName(pd.typeId)});
     box.appendChild(title);
-    const yes = document.createElement('button'); yes.textContent = '🛡️ Usar Protección'; yes.style.marginRight='0.5rem';
+    const yes = document.createElement('button'); yes.textContent = t('game.useProtection'); yes.style.marginRight='0.5rem';
     yes.onclick = () => dispatch({type:'defenseChoice', actorId:pd.targetId, use:true});
-    const no = document.createElement('button'); no.className='secondary'; no.textContent = 'No usar';
+    const no = document.createElement('button'); no.className='secondary'; no.textContent = t('game.noUse');
     no.onclick = () => dispatch({type:'defenseChoice', actorId:pd.targetId, use:false});
     box.appendChild(yes); box.appendChild(no);
   } else {
-    box.innerHTML = `<div class="msg">Esperando la decisión de ${nameOf(pd.targetId)}...</div>`;
+    box.innerHTML = `<div class="msg">${t('game.waitingDecision', {name: nameOf(pd.targetId)})}</div>`;
   }
 }
 
 function renderEquilibrioLog(){
   const box = $('equilibrioLogBox');
   if(!game.equilibrioLog.length){ box.textContent=''; return; }
-  box.innerHTML = game.equilibrioLog.map(e=>`⚖️ ${e.by} (filas ${e.rows.join(',')}): ${e.hasPoison?'SÍ hay veneno':'no hay veneno'}`).join('<br>');
+  box.innerHTML = game.equilibrioLog.map(e=>t('log.equilibrioLine', {
+    name: e.name, rows: e.rows.join(','), status: e.hasPoison ? t('log.hasPoison') : t('log.noPoison')
+  })).join('<br>');
 }
 
 function computeBoardClickHandler(curId, iAmActor){
@@ -256,9 +259,9 @@ function renderUiModeBar(){
   bar.classList.remove('hidden');
   if(uiMode.type==='equilibrio'){
     const span = document.createElement('span'); span.className='msg';
-    span.textContent = `Filas elegidas: ${uiMode.rows.length}/${uiMode.rowsNeeded}`;
+    span.textContent = t('game.rowsChosen', {picked: uiMode.rows.length, needed: uiMode.rowsNeeded});
     bar.appendChild(span);
-    const confirmBtn = document.createElement('button'); confirmBtn.className='small'; confirmBtn.textContent='Confirmar';
+    const confirmBtn = document.createElement('button'); confirmBtn.className='small'; confirmBtn.textContent=t('game.confirm');
     confirmBtn.disabled = uiMode.rows.length !== uiMode.rowsNeeded;
     confirmBtn.onclick = () => {
       const rows = uiMode.rows.slice(); const actorId = currentPlayerId();
@@ -268,10 +271,10 @@ function renderUiModeBar(){
     bar.appendChild(confirmBtn);
   } else {
     const span = document.createElement('span'); span.className='msg';
-    span.textContent = `Elige ${uiMode.need - uiMode.picked.length} chuche(s) más para ${WILDCARDS[uiMode.type].name}`;
+    span.textContent = t('game.chooseMoreFor', {n: uiMode.need - uiMode.picked.length, wc: wcName(uiMode.type)});
     bar.appendChild(span);
   }
-  const cancelBtn = document.createElement('button'); cancelBtn.className='small secondary'; cancelBtn.textContent='Cancelar';
+  const cancelBtn = document.createElement('button'); cancelBtn.className='small secondary'; cancelBtn.textContent=t('game.cancel');
   cancelBtn.onclick = () => { uiMode = null; renderGameScreenFull(); };
   bar.appendChild(cancelBtn);
 }
@@ -282,7 +285,7 @@ function renderLeftInventories(){
   game.players.forEach(p=>{
     const row = document.createElement('div');
     row.className = 'inv-row' + (p.id===curId?' turn':'') + (!game.alive.includes(p.id)?' out':'');
-    const icons = game.inventories[p.id].map(t=>`<span title="${WILDCARDS[t].name}">${WILDCARDS[t].icon}</span>`).join(' ') || '—';
+    const icons = game.inventories[p.id].map(wid=>`<span title="${wcName(wid)}">${WILDCARDS[wid].icon}</span>`).join(' ') || '—';
     const livesTxt = game.livesConfig > 1 ? ` · ❤️${game.flags[p.id].lives}` : '';
     row.innerHTML = `<b>${p.name}${p.id===curId?' 🎯':''}${!game.alive.includes(p.id)?' 💀':''}${livesTxt}</b><div class="inv-icons">${icons}</div>`;
     box.appendChild(row);
@@ -293,23 +296,23 @@ function renderRightActions(curId){
   const box = $('myActions'); box.innerHTML = '';
   const g = game;
   const iAmActor = localMode || myId === curId;
-  if(g.pendingDefense){ box.innerHTML = '<div class="msg">Esperando resolución de un ataque...</div>'; return; }
-  if(!iAmActor){ box.innerHTML = '<div class="msg">No es tu turno.</div>'; return; }
+  if(g.pendingDefense){ box.innerHTML = `<div class="msg">${t('game.waitingAttack')}</div>`; return; }
+  if(!iAmActor){ box.innerHTML = `<div class="msg">${t('game.notYourTurn')}</div>`; return; }
   const fl = g.flags[curId];
   if(fl.blocked){
-    box.innerHTML = '<div class="msg">🚫 Tus comodines están bloqueados este turno.</div>';
+    box.innerHTML = `<div class="msg">${t('game.blocked')}</div>`;
   } else {
     const inv = g.inventories[curId];
-    if(!inv.length){ box.innerHTML = '<div class="msg">Sin comodines.</div>'; }
+    if(!inv.length){ box.innerHTML = `<div class="msg">${t('game.noWildcards')}</div>`; }
     inv.forEach(typeId=>{
       const wc = WILDCARDS[typeId];
       const btn = document.createElement('button'); btn.className = 'wc-item small';
-      btn.innerHTML = `${wc.icon} ${wc.name}`;
+      btn.innerHTML = `${wc.icon} ${wcName(typeId)}`;
       if(typeId==='proteccion'){
-        btn.title = 'Se activa solo cuando alguien te ataque (no se pulsa).';
+        btn.title = t('game.protectionHint');
         btn.disabled = true;
       } else {
-        btn.title = wc.desc;
+        btn.title = wcDesc(typeId);
         btn.disabled = !!uiMode || !!g.pendingRuleta;
         btn.onclick = () => startActivation(curId, typeId);
       }
@@ -318,7 +321,7 @@ function renderRightActions(curId){
   }
   if(g.livesConfig > 1){
     const livesDiv = document.createElement('div'); livesDiv.className = 'msg'; livesDiv.style.marginTop = '0.4rem';
-    livesDiv.textContent = `❤️ Vidas: ${fl.lives}`;
+    livesDiv.textContent = t('game.lives', {n: fl.lives});
     box.appendChild(livesDiv);
   }
   if(g.actionTimeSec !== 0){
@@ -358,17 +361,17 @@ function renderResultScreen(){
     box.classList.remove('lose-flash');
     banner.className = 'result-win-banner';
     $('resultEmoji').textContent = '🏆';
-    banner.textContent = winners.length > 1 ? 'Habéis ganado' : 'Has ganado';
-    $('resultSub').textContent = winners.length > 1 ? `Sobreviven: ${winners.map(nameOf).join(', ')}` : '';
+    banner.textContent = winners.length > 1 ? t('result.wonPlural') : t('result.wonSingular');
+    $('resultSub').textContent = winners.length > 1 ? t('result.survivors', {names: winners.map(nameOf).join(', ')}) : '';
   } else {
     box.classList.add('lose-flash');
     banner.className = 'result-lose-banner';
     $('resultEmoji').textContent = '💀';
-    banner.textContent = 'Has perdido';
+    banner.textContent = t('result.lost');
     const place = ranking.indexOf(myId) + 1;
-    $('resultSub').textContent = `Ganador: ${winners.map(nameOf).join(', ') || '—'} · Puesto ${place} de ${ranking.length}.`;
+    $('resultSub').textContent = t('result.summary', {names: winners.map(nameOf).join(', ') || t('common.dash'), place, total: ranking.length});
   }
-  $('resultRanking').innerHTML = 'Clasificación: ' + ranking.map((id,i)=>`${i+1}º ${nameOf(id)}`).join(' · ');
+  $('resultRanking').innerHTML = t('result.ranking', {list: ranking.map((id,i)=>`${t('result.rank',{i:i+1})} ${nameOf(id)}`).join(' · ')});
   if(!resultAnnounced){
     resultAnnounced = true;
     if(iAmWinner){ sfxWin(); launchConfetti(); } else { sfxLose(); }

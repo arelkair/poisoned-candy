@@ -106,11 +106,11 @@ function startActivation(actorId, typeId){
 
 function openTargetModal(actorId, typeId){
   const others = game.players.filter(p => p.id!==actorId && game.alive.includes(p.id));
-  openModalGeneric(`Elige objetivo para ${WILDCARDS[typeId].name}`, others.map(p=>({label:p.name, value:p.id})), (targetId)=>{
+  openModalGeneric(t('modal.chooseTargetFor', {wc: wcName(typeId)}), others.map(p=>({label:p.name, value:p.id})), (targetId)=>{
     if(typeId==='ladron'){
       const targetInv = [...new Set(game.inventories[targetId])];
       if(!targetInv.length){ return; }
-      openModalGeneric(`¿Qué le robas a ${nameOf(targetId)}?`, targetInv.map(t=>({label:WILDCARDS[t].icon+' '+WILDCARDS[t].name, value:t})), (stealType)=>{
+      openModalGeneric(t('modal.whatToSteal', {name: nameOf(targetId)}), targetInv.map(wid=>({label:WILDCARDS[wid].icon+' '+wcName(wid), value:wid})), (stealType)=>{
         dispatch({type:'activate', actorId, typeId:'ladron', targetId, stealType});
       });
     } else {
@@ -122,7 +122,7 @@ function openTargetModal(actorId, typeId){
 function openInventoryModal(types, onPick){
   const uniq = [...new Set(types)];
   if(!uniq.length) return;
-  openModalGeneric('Elige un comodín tuyo', uniq.map(t=>({label:WILDCARDS[t].icon+' '+WILDCARDS[t].name, value:t})), onPick);
+  openModalGeneric(t('modal.chooseYourWildcard'), uniq.map(wid=>({label:WILDCARDS[wid].icon+' '+wcName(wid), value:wid})), onPick);
 }
 
 let poisonPickState = null;
@@ -206,7 +206,7 @@ function applyAction(a){
       g.pendingDefense = null;
       if(a.use){
         removeOne(pd.targetId, 'proteccion');
-        g.lastMessage = `${nameOf(pd.targetId)} bloqueó ${WILDCARDS[pd.typeId].name} de ${nameOf(pd.attackerId)} con Protección.`;
+        g.lastMessage = {key:'msg.protectionBlocked', params:{target: nameOf(pd.targetId), wc: wcName(pd.typeId), atk: nameOf(pd.attackerId)}};
       } else {
         resolveTargetedEffect(pd.attackerId, pd.targetId, pd.typeId, pd.params);
       }
@@ -218,26 +218,26 @@ function applyAction(a){
 
 function activateWildcard(actorId, typeId, params){
   const g = game; const fl = g.flags[actorId];
-  if(fl.blocked){ g.lastMessage = 'Tus comodines están bloqueados este turno.'; return; }
+  if(fl.blocked){ g.lastMessage = {key:'game.blocked', params:{}}; return; }
   if(!g.inventories[actorId].includes(typeId)) return;
   fireEvent('wildcard');
 
   if(typeId==='saltar_turno'){
     removeOne(actorId, typeId);
     fl.forcedEats = 0; fl.forcedCells = [];
-    g.lastMessage = `${nameOf(actorId)} saltó su turno.`;
+    g.lastMessage = {key:'msg.skippedTurn', params:{name: nameOf(actorId)}};
     advanceTurn();
     return;
   }
-  if(typeId==='angel_guardian'){ removeOne(actorId,typeId); fl.guardianArmed=true; g.lastMessage=`${nameOf(actorId)} activó su Ángel Guardián.`; return; }
-  if(typeId==='revertidor'){ removeOne(actorId,typeId); fl.revertidor=true; g.lastMessage=`${nameOf(actorId)} activó el Revertidor.`; return; }
+  if(typeId==='angel_guardian'){ removeOne(actorId,typeId); fl.guardianArmed=true; g.lastMessage={key:'msg.guardianActivated', params:{name: nameOf(actorId)}}; return; }
+  if(typeId==='revertidor'){ removeOne(actorId,typeId); fl.revertidor=true; g.lastMessage={key:'msg.revertidorActivated', params:{name: nameOf(actorId)}}; return; }
 
   if(DEFENSIBLE_WILDCARDS.includes(typeId)){
     const targetId = params.targetId;
     removeOne(actorId,typeId);
     if(g.inventories[targetId].includes('proteccion')){
       g.pendingDefense = {attackerId:actorId, targetId, typeId, params};
-      g.lastMessage = `${nameOf(actorId)} intenta usar ${WILDCARDS[typeId].name} sobre ${nameOf(targetId)}...`;
+      g.lastMessage = {key:'msg.attackAttempt', params:{atk: nameOf(actorId), wc: wcName(typeId), target: nameOf(targetId)}};
       return;
     }
     resolveTargetedEffect(actorId, targetId, typeId, params);
@@ -246,7 +246,7 @@ function activateWildcard(actorId, typeId, params){
   if(typeId==='lupa'){
     removeOne(actorId,typeId);
     (params.cells||[]).forEach(c=>{ g.publicInfo[c] = isCellPoison(c); });
-    g.lastMessage = `${nameOf(actorId)} usó la Lupa.`;
+    g.lastMessage = {key:'msg.lupaUsed', params:{name: nameOf(actorId)}};
     return;
   }
   if(typeId==='equilibrio'){
@@ -254,21 +254,21 @@ function activateWildcard(actorId, typeId, params){
     const rows = params.rows||[];
     let hasPoison = false;
     rows.forEach(r=>{ for(let c=0;c<g.cols;c++){ const idx=r*g.cols+c; if(g.eaten[idx]===undefined && isCellPoison(idx)) hasPoison = true; } });
-    g.equilibrioLog.push({by:nameOf(actorId), rows: rows.slice().sort((a,b)=>a-b), hasPoison});
-    g.lastMessage = `${nameOf(actorId)} usó Equilibrio: en esas filas ${hasPoison ? 'SÍ' : 'NO'} hay una envenenada.`;
+    g.equilibrioLog.push({name:nameOf(actorId), rows: rows.slice().sort((a,b)=>a-b), hasPoison});
+    g.lastMessage = {key: hasPoison ? 'msg.equilibrioYes' : 'msg.equilibrioNo', params:{name: nameOf(actorId)}};
     return;
   }
   if(typeId==='martillo'){
     removeOne(actorId,typeId);
     (params.cells||[]).forEach(c=>{ if(g.eaten[c]===undefined) g.eaten[c]={by:'destroyed'}; });
-    g.lastMessage = `${nameOf(actorId)} destruyó 2 chuches con el Martillo.`;
+    g.lastMessage = {key:'msg.martilloUsed', params:{name: nameOf(actorId)}};
     return;
   }
   if(typeId==='calavera'){
     removeOne(actorId,typeId);
     if(!g.poison[actorId]) g.poison[actorId]=[];
     g.poison[actorId].push(params.cell);
-    g.lastMessage = `${nameOf(actorId)} añadió una 2ª envenenada con Calavera.`;
+    g.lastMessage = {key:'msg.calaveraUsed', params:{name: nameOf(actorId)}};
     return;
   }
   if(typeId==='ladron'){
@@ -276,14 +276,14 @@ function activateWildcard(actorId, typeId, params){
     removeOne(actorId,typeId);
     const idx = g.inventories[targetId].indexOf(stealType);
     if(idx>=0){ g.inventories[targetId].splice(idx,1); g.inventories[actorId].push(stealType); }
-    g.lastMessage = `${nameOf(actorId)} robó ${WILDCARDS[stealType].name} a ${nameOf(targetId)}.`;
+    g.lastMessage = {key:'msg.ladronUsed', params:{name: nameOf(actorId), wc: wcName(stealType), target: nameOf(targetId)}};
     return;
   }
   if(typeId==='duplicador'){
     const dupType = params.dupType;
     removeOne(actorId,typeId);
     g.inventories[actorId].push(dupType);
-    g.lastMessage = `${nameOf(actorId)} duplicó ${WILDCARDS[dupType].name}.`;
+    g.lastMessage = {key:'msg.duplicadorUsed', params:{name: nameOf(actorId), wc: wcName(dupType)}};
     return;
   }
 }
@@ -292,12 +292,12 @@ function resolveTargetedEffect(actorId, targetId, typeId, params){
   const g = game;
   if(typeId==='foca_gordita'){
     g.flags[targetId].forcedEats += 3;
-    g.lastMessage = `${nameOf(actorId)} usó ${WILDCARDS.foca_gordita.name} sobre ${nameOf(targetId)}: le quedan ${g.flags[targetId].forcedEats} mordiscos obligatorios.`;
+    g.lastMessage = {key:'msg.focaGordita', params:{atk: nameOf(actorId), wc: wcName('foca_gordita'), target: nameOf(targetId), n: g.flags[targetId].forcedEats}};
     return;
   }
   if(typeId==='bloquea_comodines'){
     g.flags[targetId].blocked = true;
-    g.lastMessage = `${nameOf(actorId)} bloqueó los comodines de ${nameOf(targetId)}.`;
+    g.lastMessage = {key:'msg.bloqueaComodines', params:{atk: nameOf(actorId), target: nameOf(targetId)}};
     return;
   }
   if(typeId==='ruleta_rusa'){
@@ -305,12 +305,12 @@ function resolveTargetedEffect(actorId, targetId, typeId, params){
     for(let i=0;i<g.colors.length;i++) if(g.eaten[i]===undefined) avail.push(i);
     shuffleInPlace(avail);
     g.pendingRuleta = {activatorId:actorId, targetId, options:avail.slice(0,3)};
-    g.lastMessage = `${nameOf(actorId)} gira la Ruleta Rusa contra ${nameOf(targetId)}...`;
+    g.lastMessage = {key:'msg.ruletaRusa', params:{atk: nameOf(actorId), target: nameOf(targetId)}};
     return;
   }
   if(typeId==='secretito'){
     g.secretVision[actorId] = targetId;
-    g.lastMessage = `${nameOf(actorId)} usó Secretito sobre ${nameOf(targetId)}.`;
+    g.lastMessage = {key:'msg.secretito', params:{atk: nameOf(actorId), target: nameOf(targetId)}};
     return;
   }
 }
@@ -333,8 +333,8 @@ function resolveEat(actorId, cell){
     poisoned = !poisoned;
     fl.revertidor = false;
     g.lastMessage = poisoned
-      ? `${nameOf(actorId)} comió una segura, pero el Revertidor la volvió veneno.`
-      : `${nameOf(actorId)} comió veneno, pero el Revertidor lo salvó.`;
+      ? {key:'msg.revertidorSafeToPoison', params:{name: nameOf(actorId)}}
+      : {key:'msg.revertidorPoisonToSafe', params:{name: nameOf(actorId)}};
   } else {
     g.lastMessage = '';
   }
@@ -343,20 +343,20 @@ function resolveEat(actorId, cell){
   if(poisoned){
     if(fl.guardianArmed){
       fl.guardianArmed = false;
-      g.lastMessage = `${nameOf(actorId)} debía morir, pero su Ángel Guardián lo revivió.`;
+      g.lastMessage = {key:'msg.guardianSaved', params:{name: nameOf(actorId)}};
     } else {
       fl.lives--;
       if(fl.lives <= 0){
         g.alive = g.alive.filter(id=>id!==actorId);
         g.eliminationOrder.push(actorId);
         died = true;
-        if(!g.lastMessage) g.lastMessage = `${nameOf(actorId)} comió la envenenada y queda eliminado.`;
+        if(!g.lastMessage) g.lastMessage = {key:'msg.eliminated', params:{name: nameOf(actorId)}};
       } else if(!g.lastMessage){
-        g.lastMessage = `${nameOf(actorId)} comió la envenenada. Le queda(n) ${fl.lives} vida(s).`;
+        g.lastMessage = {key:'msg.poisonedLivesLeft', params:{name: nameOf(actorId), n: fl.lives}};
       }
     }
   } else if(!g.lastMessage){
-    g.lastMessage = `${nameOf(actorId)} comió una chuche segura.`;
+    g.lastMessage = {key:'msg.ateSafe', params:{name: nameOf(actorId)}};
   }
   fireEvent(died ? 'eat-poison' : 'eat-safe');
   if(fl.forcedCells && fl.forcedCells.length && fl.forcedCells[0]===cell) fl.forcedCells.shift();

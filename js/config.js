@@ -1,16 +1,16 @@
-function populateTimeSelect(selId, defaultVal){
+function populateTimeSelect(selId, value){
   const sel = $(selId); sel.innerHTML = '';
-  const opt0 = document.createElement('option'); opt0.value = '0'; opt0.textContent = 'Sin cronómetro'; sel.appendChild(opt0);
-  for(let t=10; t<=120; t+=10){ const o=document.createElement('option'); o.value=String(t); o.textContent=t+'s'; sel.appendChild(o); }
-  const optInf = document.createElement('option'); optInf.value = 'inf'; optInf.textContent = '∞ Infinito'; sel.appendChild(optInf);
-  sel.value = String(defaultVal);
+  const opt0 = document.createElement('option'); opt0.value = '0'; opt0.textContent = t('config.noCronometro'); sel.appendChild(opt0);
+  for(let s=10; s<=120; s+=10){ const o=document.createElement('option'); o.value=String(s); o.textContent=t('config.seconds',{n:s}); sel.appendChild(o); }
+  const optInf = document.createElement('option'); optInf.value = 'inf'; optInf.textContent = t('config.infinite'); sel.appendChild(optInf);
+  sel.value = String(value);
 }
 
-function populateSkinOptions(){
+function populateSkinOptions(value){
   const sel = $('cfgSkin'); sel.innerHTML = '';
-  Object.keys(SKINS).forEach(key=>{ const o=document.createElement('option'); o.value=key; o.textContent = `${SKINS[key]} ${key}`; sel.appendChild(o); });
-  sel.value = 'osito';
-  $('skinPreview').textContent = SKINS['osito'];
+  Object.keys(SKINS).forEach(key=>{ const o=document.createElement('option'); o.value=key; o.textContent = `${SKINS[key]} ${skinLabel(key)}`; sel.appendChild(o); });
+  sel.value = value || 'osito';
+  $('skinPreview').textContent = SKINS[sel.value] || SKINS['osito'];
 }
 
 function openConfigScreen(){
@@ -24,7 +24,7 @@ function openConfigScreen(){
   $('cfgRandom').checked = false;
   populateTimeSelect('cfgActionTime', 30);
   populateTimeSelect('cfgPoisonTime', 20);
-  populateSkinOptions();
+  populateSkinOptions('osito');
   show('screen-config');
 }
 

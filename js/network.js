@@ -17,7 +17,7 @@ function leaveOnlineGame(){
   if(localMode) return;
   cleanupNetwork();
   updateLeaveButtonVisibility();
-  showToast('Has abandonado la partida.', 'negative');
+  showToast(t('toast.left'), 'negative');
   show('screen-menu');
 }
 
@@ -30,7 +30,7 @@ function startOnlineHost(){
     lobbyPlayersList = [{id: myId, name: myName}];
     $('roomCodeDisplay').textContent = code;
     show('screen-lobby');
-    $('lobbyMsg').textContent = 'Comparte el código para que se unan.';
+    $('lobbyMsg').textContent = t('lobby.shareCode');
     $('btnStartOnline').classList.remove('hidden');
     updateLeaveButtonVisibility();
     renderLobby();
@@ -44,12 +44,12 @@ function startOnlineHost(){
       delete hostConns[conn.peer];
       renderLobby();
       if(leaving){
-        showToast(`${leaving.name} ha abandonado la partida.`, 'negative');
-        broadcastToast(`${leaving.name} ha abandonado la partida.`, 'negative');
+        showToast(t('toast.playerLeft', {name: leaving.name}), 'negative');
+        broadcastToast('toast.playerLeft', {name: leaving.name}, 'negative');
       }
     });
   });
-  peer.on('error', err => { $('lobbyMsg').textContent = 'Error: '+err.type; });
+  peer.on('error', err => { $('lobbyMsg').textContent = t('lobby.error', {type: err.type}); });
 }
 
 function handleHostData(conn, data){
@@ -60,8 +60,8 @@ function handleHostData(conn, data){
     renderLobby();
     broadcastLobby();
     conn.send({type:'joined', hostName: myName});
-    showToast(`${data.name} se ha unido a la partida.`, 'positive');
-    broadcastToast(`${data.name} se ha unido a la partida.`, 'positive', conn.peer);
+    showToast(t('toast.playerJoined', {name: data.name}), 'positive');
+    broadcastToast('toast.playerJoined', {name: data.name}, 'positive', conn.peer);
   } else if(data.type === 'action'){
     if(!game || data.action.actorId !== conn.peer) return;
     applyAction(data.action);
@@ -77,16 +77,16 @@ function broadcastSync(){
   for(const id in hostConns) hostConns[id].send({type:'sync', game});
 }
 
-function broadcastToast(text, kind, excludeId){
-  for(const id in hostConns){ if(id !== excludeId) hostConns[id].send({type:'toast', text, kind}); }
+function broadcastToast(key, params, kind, excludeId){
+  for(const id in hostConns){ if(id !== excludeId) hostConns[id].send({type:'toast', key, params, kind}); }
 }
 
 function handlePeerData(data){
-  if(data.type === 'full'){ $('lobbyMsg').textContent = 'Sala llena (máx. 5).'; }
+  if(data.type === 'full'){ $('lobbyMsg').textContent = t('lobby.roomFull'); }
   else if(data.type === 'lobby'){ lobbyPlayersList = data.players; renderLobby(); }
-  else if(data.type === 'hostConfiguring'){ $('lobbyMsg').textContent = 'El anfitrión está configurando la partida...'; }
-  else if(data.type === 'joined'){ showToast(`Te has unido a la partida de ${data.hostName}.`, 'positive'); }
-  else if(data.type === 'toast'){ showToast(data.text, data.kind); }
+  else if(data.type === 'hostConfiguring'){ $('lobbyMsg').textContent = t('lobby.hostConfiguring'); }
+  else if(data.type === 'joined'){ showToast(t('toast.joinedRoomOf', {host: data.hostName}), 'positive'); }
+  else if(data.type === 'toast'){ showToast(t(data.key, data.params), data.kind); }
   else if(data.type === 'sync'){ game = data.game; renderCurrentPhase(); }
 }
 
@@ -95,7 +95,7 @@ function initOnlineScreens(){
   $('btnLobbyLeave').onclick = () => leaveOnlineGame();
 
   $('btnStartOnline').onclick = () => {
-    if(lobbyPlayersList.length < 2){ $('lobbyMsg').textContent = 'Necesitas al menos 2 jugadores.'; return; }
+    if(lobbyPlayersList.length < 2){ $('lobbyMsg').textContent = t('lobby.needTwoPlayers'); return; }
     pendingPlayers = lobbyPlayersList.map(p=>({id:p.id, name:p.name}));
     for(const id in hostConns) hostConns[id].send({type:'hostConfiguring'});
     openConfigScreen();
@@ -104,15 +104,15 @@ function initOnlineScreens(){
   $('btnJoinBack').onclick = () => show('screen-menu');
   $('btnDoJoin').onclick = () => {
     const code = $('joinCode').value.trim().toUpperCase();
-    if(!code){ $('joinMsg').textContent = 'Escribe un código.'; return; }
+    if(!code){ $('joinMsg').textContent = t('join.emptyCode'); return; }
     isHost = false;
-    $('joinMsg').textContent = 'Conectando...';
+    $('joinMsg').textContent = t('join.connecting');
     peer = new Peer(undefined, {debug:0, config: ICE_CONFIG});
     peer.on('open', id => {
       myId = id;
       hostConn = peer.connect('candy-'+code, {reliable:true});
       const timeout = setTimeout(() => {
-        $('joinMsg').textContent = 'No se pudo conectar. Comprueba el código y que ambos tengáis buena conexión, o probad de nuevo.';
+        $('joinMsg').textContent = t('join.failed');
         cleanupNetwork();
       }, JOIN_TIMEOUT_MS);
       hostConn.on('open', () => {
@@ -120,16 +120,16 @@ function initOnlineScreens(){
         hostConn.send({type:'join', name: myName});
         show('screen-lobby');
         $('roomCodeDisplay').textContent = code;
-        $('lobbyMsg').textContent = 'Esperando a que el anfitrión empiece...';
+        $('lobbyMsg').textContent = t('lobby.waitingHostStart');
         updateLeaveButtonVisibility();
       });
       hostConn.on('data', data => handlePeerData(data));
-      hostConn.on('close', () => { $('lobbyMsg').textContent = 'Conexión perdida con el anfitrión.'; });
+      hostConn.on('close', () => { $('lobbyMsg').textContent = t('lobby.connectionLost'); });
       hostConn.on('error', () => {
         clearTimeout(timeout);
-        $('joinMsg').textContent = 'No se pudo conectar con esa sala.';
+        $('joinMsg').textContent = t('join.connectFailed');
       });
     });
-    peer.on('error', err => { $('joinMsg').textContent = 'Error: '+err.type; });
+    peer.on('error', err => { $('joinMsg').textContent = t('join.error', {type: err.type}); });
   };
 }

@@ -30,6 +30,12 @@ function initModal(){
   $('btnModalCancel').onclick = closeModal;
 }
 
+function initLang(){
+  const sel = $('langSelect');
+  sel.value = LANG;
+  sel.onchange = () => setLang(sel.value);
+}
+
 function initTheme(){
   $('btnTheme').onclick = () => {
     const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';

@@ -1,21 +1,21 @@
 let audioCtx = null, musicOn = false, musicTimer = null;
 
 const MUSIC_TRACKS = {
-  alegre:    {label:'Alegre',   type:'triangle', bassType:'sine',     noteDur:0.28, notes:[261.63,329.63,392.00,329.63,293.66,349.23,440.00,349.23]},
-  retro:     {label:'Retro',    type:'square',   bassType:'square',   noteDur:0.15, notes:[440,523.25,440,349.23,392.00,493.88,392.00,329.63]},
-  misterio:  {label:'Misterio', type:'sine',     bassType:'sine',     noteDur:0.42, notes:[220,246.94,196,220,174.61,196,164.81,146.83]},
-  suspenso:  {label:'Suspenso', type:'sawtooth', bassType:'sine',     noteDur:0.22, notes:[110,110,116.54,110,103.83,98,103.83,110]},
-  chill:     {label:'Chill',    type:'sine',     bassType:'triangle', noteDur:0.5,  notes:[293.66,349.23,392.00,349.23,329.63,392.00,440.00,392.00]},
-  fiesta:    {label:'Fiesta',   type:'triangle', bassType:'square',   noteDur:0.18, notes:[523.25,659.25,783.99,659.25,587.33,739.99,880.00,739.99]},
-  ocho_bits: {label:'8 bits',   type:'square',   bassType:'square',   noteDur:0.14, notes:[392.00,392.00,523.25,392.00,349.23,392.00,440.00,349.23]},
-  epico:     {label:'Épico',    type:'sawtooth', bassType:'triangle', noteDur:0.3,  notes:[196,246.94,293.66,246.94,220,261.63,329.63,261.63]},
+  alegre:    {type:'triangle', bassType:'sine',     noteDur:0.28, notes:[261.63,329.63,392.00,329.63,293.66,349.23,440.00,349.23]},
+  retro:     {type:'square',   bassType:'square',   noteDur:0.15, notes:[440,523.25,440,349.23,392.00,493.88,392.00,329.63]},
+  misterio:  {type:'sine',     bassType:'sine',     noteDur:0.42, notes:[220,246.94,196,220,174.61,196,164.81,146.83]},
+  suspenso:  {type:'sawtooth', bassType:'sine',     noteDur:0.22, notes:[110,110,116.54,110,103.83,98,103.83,110]},
+  chill:     {type:'sine',     bassType:'triangle', noteDur:0.5,  notes:[293.66,349.23,392.00,349.23,329.63,392.00,440.00,392.00]},
+  fiesta:    {type:'triangle', bassType:'square',   noteDur:0.18, notes:[523.25,659.25,783.99,659.25,587.33,739.99,880.00,739.99]},
+  ocho_bits: {type:'square',   bassType:'square',   noteDur:0.14, notes:[392.00,392.00,523.25,392.00,349.23,392.00,440.00,349.23]},
+  epico:     {type:'sawtooth', bassType:'triangle', noteDur:0.3,  notes:[196,246.94,293.66,246.94,220,261.63,329.63,261.63]},
 };
 
 let currentTrack = 'alegre';
 
 function populateMusicTrackOptions(){
   const sel = $('musicTrack'); sel.innerHTML = '';
-  Object.keys(MUSIC_TRACKS).forEach(key=>{ const o=document.createElement('option'); o.value=key; o.textContent=MUSIC_TRACKS[key].label; sel.appendChild(o); });
+  Object.keys(MUSIC_TRACKS).forEach(key=>{ const o=document.createElement('option'); o.value=key; o.textContent=trackLabel(key); sel.appendChild(o); });
   sel.value = currentTrack;
 }
 

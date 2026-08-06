@@ -21,7 +21,7 @@ function buildLocalNameInputs(){
       const div = document.createElement('div');
       div.className = 'name-item';
       const inp = document.createElement('input');
-      inp.type = 'text'; inp.placeholder = `Jugador ${i+1}`; inp.maxLength = 16;
+      inp.type = 'text'; inp.placeholder = t('local.playerPlaceholder', {n:i+1}); inp.maxLength = 16;
       inp.value = i===0 ? myName : '';
       inp.id = `localName${i}`;
       div.appendChild(inp);
@@ -39,7 +39,7 @@ function initMenuScreen(){
   $('btnNameBack').onclick = () => show('screen-menu');
   $('btnNameContinue').onclick = () => {
     const v = $('myName').value.trim();
-    if(!v){ $('nameMsg').textContent = 'Escribe un nombre.'; return; }
+    if(!v){ $('nameMsg').textContent = t('name.empty'); return; }
     myName = v;
     saveNameIfOnline();
     if(pendingAction === 'local'){ show('screen-local-setup'); buildLocalNameInputs(); }
@@ -52,7 +52,7 @@ function initMenuScreen(){
     const n = Math.min(5, Math.max(2, parseInt($('localCount').value)||2));
     const players = [];
     for(let i=0;i<n;i++){
-      const v = $(`localName${i}`).value.trim() || `Jugador ${i+1}`;
+      const v = $(`localName${i}`).value.trim() || t('local.playerPlaceholder', {n:i+1});
       players.push({id:'p'+i, name:v});
     }
     localMode = true;

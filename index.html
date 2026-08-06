@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
-<title>Chuche Envenenada</title>
+<title>🍬 Chuche Envenenada</title>
 <link rel="preload" href="assets/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/geist-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="css/main.css">
@@ -21,9 +21,15 @@
 <div class="topbar">
   <div class="topbar-inner">
     <div class="brand">
-      <h1>🍬 Chuche Envenenada</h1>
+      <h1 data-i18n="app.title">🍬 Chuche Envenenada</h1>
     </div>
     <div class="settings-cluster">
+      <select id="langSelect" title="Idioma">
+        <option value="es">Español</option>
+        <option value="en">English</option>
+        <option value="ja">日本語</option>
+        <option value="ko">한국어</option>
+      </select>
       <select id="musicTrack" title="Pista de música"></select>
       <button id="btnMusic" class="icon-btn" title="Música">🔇</button>
       <button id="btnTheme" class="icon-btn" title="Tema">
@@ -37,135 +43,135 @@
 <div class="screen" id="screen-menu">
   <div class="hero">
     <div class="hero-emoji">🍬</div>
-    <h2>Chuche Envenenada</h2>
-    <p>Come chuches, evita el veneno. En persona o en línea.</p>
+    <h2 data-i18n="app.title">Chuche Envenenada</h2>
+    <p data-i18n="menu.tagline">Come chuches, evita el veneno. En persona o en línea.</p>
   </div>
   <div class="card action-group">
-    <button id="btnLocal">🎮 Jugar en este dispositivo</button>
-    <div class="divider-label">Online</div>
-    <button id="btnCreateRoom">🌐 Crear sala</button>
-    <button id="btnJoinRoom" class="secondary">🔑 Unirse a una sala</button>
+    <button id="btnLocal" data-i18n="menu.playLocal">🎮 Jugar en este dispositivo</button>
+    <div class="divider-label" data-i18n="menu.onlineDivider">Online</div>
+    <button id="btnCreateRoom" data-i18n="menu.createRoom">🌐 Crear sala</button>
+    <button id="btnJoinRoom" class="secondary" data-i18n="menu.joinRoom">🔑 Unirse a una sala</button>
   </div>
 </div>
 
 <div class="screen hidden" id="screen-name">
   <div class="card">
-    <label class="field-label">Nombre</label>
-    <input type="text" id="myName" placeholder="Tu nombre" maxlength="16">
-    <button id="btnNameContinue" style="margin-top:1rem;">Continuar</button>
-    <button class="secondary" id="btnNameBack" style="margin-top:0.5rem;">Volver</button>
+    <label class="field-label" data-i18n="name.label">Nombre</label>
+    <input type="text" id="myName" data-i18n-placeholder="name.placeholder" placeholder="Tu nombre" maxlength="16">
+    <button id="btnNameContinue" data-i18n="name.continue" style="margin-top:1rem;">Continuar</button>
+    <button class="secondary" id="btnNameBack" data-i18n="name.back" style="margin-top:0.5rem;">Volver</button>
   </div>
   <div class="msg" id="nameMsg"></div>
 </div>
 
 <div class="screen hidden" id="screen-local-setup">
   <div class="card">
-    <label class="field-label">Número de jugadores (2-5)</label>
+    <label class="field-label" data-i18n="local.countLabel">Número de jugadores (2-5)</label>
     <input type="number" id="localCount" min="2" max="5" value="2">
     <div class="name-list" id="localNames" style="margin-top:0.8rem;"></div>
-    <button id="btnLocalContinue" style="margin-top:1rem;">Continuar</button>
-    <button class="secondary" id="btnLocalBack" style="margin-top:0.5rem;">Volver</button>
+    <button id="btnLocalContinue" data-i18n="local.continue" style="margin-top:1rem;">Continuar</button>
+    <button class="secondary" id="btnLocalBack" data-i18n="local.back" style="margin-top:0.5rem;">Volver</button>
   </div>
 </div>
 
 <div class="screen hidden" id="screen-join">
   <div class="card">
-    <label class="field-label">Código de sala</label>
-    <input type="text" id="joinCode" placeholder="Ej: FOX42" maxlength="8" style="text-transform:uppercase;">
-    <button id="btnDoJoin" style="margin-top:1rem;">Unirse</button>
-    <button class="secondary" id="btnJoinBack" style="margin-top:0.5rem;">Volver</button>
+    <label class="field-label" data-i18n="join.label">Código de sala</label>
+    <input type="text" id="joinCode" data-i18n-placeholder="join.placeholder" placeholder="Ej: FOX42" maxlength="8" style="text-transform:uppercase;">
+    <button id="btnDoJoin" data-i18n="join.button" style="margin-top:1rem;">Unirse</button>
+    <button class="secondary" id="btnJoinBack" data-i18n="join.back" style="margin-top:0.5rem;">Volver</button>
   </div>
   <div class="msg" id="joinMsg"></div>
 </div>
 
 <div class="screen hidden" id="screen-lobby">
   <div class="card room-code-card">
-    <div class="msg">Código de sala</div>
+    <div class="msg" data-i18n="lobby.codeLabel">Código de sala</div>
     <div id="roomCodeDisplay">----</div>
   </div>
   <div class="card">
-    <div class="section-title">Jugadores conectados</div>
+    <div class="section-title" data-i18n="lobby.playersLabel">Jugadores conectados</div>
     <div class="players-box" id="lobbyPlayers"></div>
   </div>
-  <button id="btnStartOnline" class="hidden">Empezar partida</button>
-  <button id="btnLobbyLeave" class="secondary">Abandonar sala</button>
-  <div class="msg" id="lobbyMsg">Esperando al anfitrión...</div>
+  <button id="btnStartOnline" class="hidden" data-i18n="lobby.start">Empezar partida</button>
+  <button id="btnLobbyLeave" class="secondary" data-i18n="lobby.leave">Abandonar sala</button>
+  <div class="msg" id="lobbyMsg" data-i18n="lobby.waitingHost">Esperando al anfitrión...</div>
 </div>
 
 <div class="screen hidden" id="screen-config">
   <div class="card">
-    <b>⚙️ Configuración de la sala</b>
+    <b data-i18n="config.title">⚙️ Configuración de la sala</b>
 
     <div class="config-section" style="margin-top:0.9rem;">
-      <div class="section-title">Tablero</div>
+      <div class="section-title" data-i18n="config.sectionBoard">Tablero</div>
       <div class="config-grid">
         <div class="config-item full">
-          <label class="field-label">Filas × columnas (2-10)</label>
+          <label class="field-label" data-i18n="config.boardLabel">Filas × columnas (2-10)</label>
           <div class="row">
             <input type="number" id="cfgRows" min="2" max="10">
             <input type="number" id="cfgCols" min="2" max="10">
           </div>
         </div>
         <div class="config-item full">
-          <label class="field-label">Estilo de la chuchería <span class="skin-preview" id="skinPreview">🧸</span></label>
+          <label class="field-label"><span data-i18n="config.skinLabel">Estilo de la chuchería</span> <span class="skin-preview" id="skinPreview">🧸</span></label>
           <select id="cfgSkin"></select>
         </div>
       </div>
     </div>
 
     <div class="config-section" style="margin-top:0.6rem;">
-      <div class="section-title">Tiempo</div>
+      <div class="section-title" data-i18n="config.sectionTime">Tiempo</div>
       <div class="config-grid">
         <div class="config-item">
-          <label class="field-label">Tiempo para actuar</label>
+          <label class="field-label" data-i18n="config.actionTimeLabel">Tiempo para actuar</label>
           <select id="cfgActionTime"></select>
         </div>
         <div class="config-item">
-          <label class="field-label">Tiempo para elegir veneno</label>
+          <label class="field-label" data-i18n="config.poisonTimeLabel">Tiempo para elegir veneno</label>
           <select id="cfgPoisonTime"></select>
         </div>
       </div>
     </div>
 
     <div class="config-section" style="margin-top:0.6rem;">
-      <div class="section-title">Comodines</div>
+      <div class="section-title" data-i18n="config.sectionWildcards">Comodines</div>
       <div class="config-grid">
         <div class="config-item">
-          <label class="field-label">Máx. por jugador</label>
+          <label class="field-label" data-i18n="config.maxWildcardsLabel">Máx. por jugador</label>
           <input type="number" id="cfgMaxWildcards" min="0" max="15">
         </div>
         <div class="config-item">
-          <label class="field-label">Stock de cada comodín</label>
+          <label class="field-label" data-i18n="config.stockLabel">Stock de cada comodín</label>
           <input type="number" id="cfgStock" min="1" max="9">
         </div>
         <div class="config-item full toggle-row">
-          <span>Comodines al azar (sin tienda)</span>
+          <span data-i18n="config.randomLabel">Comodines al azar (sin tienda)</span>
           <input type="checkbox" id="cfgRandom">
         </div>
       </div>
     </div>
 
     <div class="config-section" style="margin-top:0.6rem;">
-      <div class="section-title">Reglas</div>
+      <div class="section-title" data-i18n="config.sectionRules">Reglas</div>
       <div class="config-grid">
         <div class="config-item">
-          <label class="field-label">Chuches envenenadas / jugador</label>
+          <label class="field-label" data-i18n="config.poisonCountLabel">Chuches envenenadas / jugador</label>
           <input type="number" id="cfgPoisonCount" min="1" max="9">
         </div>
         <div class="config-item">
-          <label class="field-label">Vidas por jugador</label>
+          <label class="field-label" data-i18n="config.livesLabel">Vidas por jugador</label>
           <input type="number" id="cfgLives" min="1" max="5">
         </div>
       </div>
     </div>
 
-    <button id="btnConfigContinue" style="margin-top:1rem;">Empezar partida</button>
-    <button class="secondary" id="btnConfigBack" style="margin-top:0.5rem;">Volver</button>
+    <button id="btnConfigContinue" data-i18n="config.start" style="margin-top:1rem;">Empezar partida</button>
+    <button class="secondary" id="btnConfigBack" data-i18n="config.back" style="margin-top:0.5rem;">Volver</button>
   </div>
 </div>
 
 <div class="screen screen-wide hidden" id="screen-shop">
-  <div class="card center" id="shopHeader">Elige un comodín</div>
+  <div class="card center" id="shopHeader" data-i18n="shop.chooseWildcard">Elige un comodín</div>
   <div class="msg" id="shopTimer" style="font-size:1.1rem; font-weight:700;"></div>
   <div class="shop-layout">
     <div class="card shop-shelves-card" id="shopShelves"></div>
@@ -183,7 +189,7 @@
 
 <div class="screen hidden" id="screen-wheel">
   <div class="wheel-wrap">
-    <div class="msg">Girando...</div>
+    <div class="msg" data-i18n="wheel.spinning">Girando...</div>
     <div class="wheel-name" id="wheelName">?</div>
   </div>
 </div>
@@ -191,16 +197,16 @@
 <div class="screen screen-wide hidden" id="screen-game">
   <div class="game-header">
     <div class="turn-banner" id="turnBanner">Turno de ...</div>
-    <button id="btnGameLeave" class="secondary small hidden">Abandonar partida</button>
+    <button id="btnGameLeave" class="secondary small hidden" data-i18n="game.leave">Abandonar partida</button>
   </div>
   <div class="game-layout">
     <div class="side-panel" id="otherInventoriesWrap">
-      <b style="font-size:0.85rem;">Comodines</b>
+      <b style="font-size:0.85rem;" data-i18n="config.sectionWildcards">Comodines</b>
       <div id="otherInventories"></div>
     </div>
     <div class="board" id="gameBoard"></div>
     <div class="side-panel" id="myActionsWrap">
-      <b style="font-size:0.85rem;">Tus comodines</b>
+      <b style="font-size:0.85rem;" data-i18n="game.myWildcards">Tus comodines</b>
       <div id="myActions"></div>
     </div>
   </div>
@@ -219,19 +225,20 @@
     <div class="msg" id="resultSub"></div>
     <div class="msg" id="resultRanking"></div>
   </div>
-  <button id="btnReplay">Volver al menú</button>
+  <button id="btnReplay" data-i18n="result.backToMenu">Volver al menú</button>
 </div>
 
 <div class="modal-overlay hidden" id="actionModal">
   <div class="modal-box">
     <div id="modalTitle" style="font-weight:700;"></div>
     <div class="modal-list" id="modalList"></div>
-    <button class="secondary small" id="btnModalCancel">Cancelar</button>
+    <button class="secondary small" id="btnModalCancel" data-i18n="modal.cancel">Cancelar</button>
   </div>
 </div>
 
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="js/constants.js"></script>
+<script src="js/i18n.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/state.js"></script>

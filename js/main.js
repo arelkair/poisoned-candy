@@ -1,3 +1,5 @@
+applyI18n();
+initLang();
 initMenuScreen();
 initOnlineScreens();
 initConfigScreen();
