@@ -1,8 +1,7 @@
 # Poisoned Candy
+[![Play now](https://img.shields.io/badge/play-live_demo-brightgreen?style=flat)](https://poisoned-candy-arelkair.vercel.app/)
 
 A multiplayer board game for 2-5 players. Play locally on the same device, or online through P2P rooms with an invite code. Find the poisoned candy before it finds you.
-
-**[Play](#)** *(add the link here once deployed, e.g. via GitHub Pages or Vercel)*
 
 ## How to play
 
