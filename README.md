@@ -34,6 +34,6 @@ Plain HTML, CSS, and JavaScript — no frameworks, no build step. P2P connection
 
 No installation or dependencies required. Just open `index.html` in your browser, or serve it with any static server:
 
-\`\`\`bash
+```bash
 npx serve .
-\`\`\`
+```
